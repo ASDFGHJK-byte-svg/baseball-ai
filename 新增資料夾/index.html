@@ -1,0 +1,1855 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VeloMetric AI - 棒球投球姿勢分析</title>
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+
+<!-- 字體 -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Geist:wght@500;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+<!-- Material Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+<!-- Tailwind 設定 -->
+<script>
+  // 儲存分析紀錄到 Supabase
+async function saveSession(data, scoreResult, aiResult) {
+  try {
+    await supabaseClient
+      .from('sessions')
+      .insert({
+        user_id: currentUser.id,
+        level: pitcherLevel,
+        style: pitchingStyle,
+        throws: throwingHand,
+        score: scoreResult.total,
+        front_data: data.front ? data.front : null,
+        side_data: data.side ? data.side : null,
+        back_data: data.back ? data.back : null,
+        ai_result: aiResult
+      });
+    console.log('分析結果已儲存！');
+  } catch (err) {
+    console.error('儲存失敗：', err);
+  }
+}
+
+// 讀取歷史紀錄
+async function loadHistory() {
+  if (!currentUser) return [];
+
+  const { data, error } = await supabaseClient
+    .from('sessions')
+    .select('*')
+    .eq('user_id', currentUser.id)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  if (error) {
+    console.error('讀取失敗：', error);
+    return [];
+  }
+
+  return data;
+}
+  let sidebarOpen = true;
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const mainLayout = document.getElementById('main-layout');
+  const header = document.querySelector('header');
+
+  sidebarOpen = !sidebarOpen;
+
+  if (sidebarOpen) {
+    sidebar.classList.remove('collapsed');
+    mainLayout.classList.remove('expanded');
+    header.classList.remove('expanded');
+  } else {
+    sidebar.classList.add('collapsed');
+    mainLayout.classList.add('expanded');
+    header.classList.add('expanded');
+  }
+}
+  // 頁面切換
+function switchToPage(page) {
+  // 更新導覽列樣式
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.classList.remove('active', 'bg-[#c3f400]/10', 'border-r-4', 'border-[#c3f400]', 'text-[#c3f400]', 'font-bold');
+    item.classList.add('text-on-surface-variant');
+  });
+
+  // 目前選中的項目
+  const pageMap = {
+    analyze: 0, compare: 1, trends: 2, drills: 3, history: 4
+  };
+
+  const items = document.querySelectorAll('.nav-item');
+  if (items[pageMap[page]]) {
+    items[pageMap[page]].classList.add('active', 'bg-[#c3f400]/10', 'border-r-4', 'border-[#c3f400]', 'text-[#c3f400]', 'font-bold');
+    items[pageMap[page]].classList.remove('text-on-surface-variant');
+  }
+
+  // 只有真正切換到其他頁面才顯示開發中
+  if (page !== 'analyze') {
+    const aiResult = document.getElementById('ai-result');
+    if (aiResult && !aiResult.textContent.includes('⭐')) {
+      aiResult.textContent = '🚧 此功能正在開發中，敬請期待！';
+    }
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "primary-container": "#c3f400",
+          "primary-fixed": "#c3f400",
+          "on-primary": "#283500",
+          "on-primary-fixed": "#161e00",
+          "surface": "#121414",
+          "surface-container": "#1e2020",
+          "surface-container-low": "#1a1c1c",
+          "surface-container-high": "#282a2b",
+          "surface-container-highest": "#333535",
+          "surface-container-lowest": "#0c0f0f",
+          "on-surface": "#e2e2e2",
+          "on-surface-variant": "#c4c9ac",
+          "outline-variant": "#444933",
+          "background": "#121414",
+          "on-background": "#e2e2e2",
+          "secondary": "#b9c7e4",
+          "error": "#ffb4ab",
+        },
+        fontFamily: {
+          "data-mono": ["Geist"],
+          "display-lg": ["Inter"],
+        },
+        fontSize: {
+          "label-caps": ["12px", { lineHeight: "16px", letterSpacing: "0.05em", fontWeight: "700" }],
+          "data-mono": ["14px", { lineHeight: "20px", letterSpacing: "0.02em", fontWeight: "500" }],
+        }
+      }
+    }
+  }
+</script>
+
+<!-- 玻璃效果和特效 CSS -->
+<style>
+  #record-btn {
+  background: #8b1a1a;
+  color: #f0e6d3;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+#stoprec-btn {
+  background: #c3f400;
+  color: #283500;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: none;
+}
+
+#next-btn {
+  background: #4a7c59;
+  color: #f0e6d3;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: none;
+}
+
+#analyze-btn {
+  background: #533ab7;
+  color: #f0e6d3;
+  border: none;
+  border-radius: 8px;
+  padding: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: none;
+}
+
+#restart-btn {
+  background: #2a1f14;
+  color: #a08060;
+  border: 1px solid #444933;
+  border-radius: 8px;
+  padding: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+button:hover:not(:disabled) {
+  opacity: 0.85;
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+  #sidebar.collapsed {
+  transform: translateX(-100%);
+}
+
+#main-layout.expanded, header.expanded {
+  margin-left: 0 !important;
+  left: 0 !important;
+}
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .glass-card {
+    background: rgba(45, 55, 72, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .neon-glow-border {
+    border: 1px solid #c3f400;
+    box-shadow: 0 0 12px rgba(195, 244, 0, 0.3);
+  }
+  @keyframes scanline {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(1000%); }
+  }
+  .scanner-effect {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #c3f400, transparent);
+    animation: scanline 4s linear infinite;
+    opacity: 0.5;
+  }
+</style>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext x='0' y='14'%3E%F0%9F%8F%BE%3C/text%3E%3C/svg%3E">
+
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js"></script>
+  <!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="database.js"></script>
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background-color: #1a120b;
+      color: #f0e6d3;
+      font-family: Arial, sans-serif;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+      border-bottom: 2px solid #4a7c59;
+      padding-bottom: 16px;
+    }
+
+    header h1 { font-size: 28px; color: #6db87a; letter-spacing: 2px; }
+    header p { font-size: 14px; color: #a08060; margin-top: 6px; }
+
+    /* 模式切換 */
+    #mode-tabs {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+
+    .tab-btn {
+      padding: 10px 30px;
+      font-size: 15px;
+      border: 2px solid #4a7c59;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      background: transparent;
+      color: #a08060;
+      transition: all 0.2s;
+      flex: none;
+    }
+
+    .tab-btn.active {
+      background-color: #4a7c59;
+      color: #f0e6d3;
+    }
+
+    /* 步驟進度條 */
+    #steps {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 24px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .step-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid #4a7c59;
+      background: #1a120b;
+      color: #a08060;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+
+    .step-circle.active { background: #4a7c59; color: #f0e6d3; border-color: #6db87a; }
+    .step-circle.done { background: #2a4a35; color: #6db87a; border-color: #6db87a; }
+
+    .step-label { font-size: 12px; color: #a08060; text-align: center; }
+    .step-label.active { color: #6db87a; }
+    .step-label.done { color: #4a7c59; }
+
+    .step-line {
+      height: 2px;
+      flex: 0.5;
+      background: #2a1f14;
+      margin-bottom: 20px;
+      transition: background 0.3s;
+    }
+
+    .step-line.done { background: #4a7c59; }
+
+    /* 角度提示 */
+    #angle-guide {
+      background: #2a1f14;
+      border: 1px solid #4a7c59;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    #angle-icon { font-size: 36px; }
+    #angle-text h3 { font-size: 16px; color: #6db87a; margin-bottom: 4px; }
+    #angle-text p { font-size: 13px; color: #a08060; line-height: 1.6; }
+
+    #main-layout {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    #left-panel {
+      flex: 1.2;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    #camera-section {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4/3;
+      background-color: #0d0d0d;
+      border: 2px solid #4a7c59;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    #camera-section.front { border-color: #6db87a; }
+    #camera-section.side  { border-color: #c8904a; }
+    #camera-section.back  { border-color: #7a6db8; }
+
+    #video { width: 100%; height: 100%; object-fit: cover; }
+
+    #canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+    }
+
+    #camera-status {
+      position: absolute;
+      top: 10px; left: 10px;
+      background: rgba(0,0,0,0.6);
+      color: #ff4444;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid #4a7c59;
+    }
+
+    #rec-indicator {
+      display: none;
+      position: absolute;
+      top: 10px; right: 10px;
+      background: rgba(0,0,0,0.6);
+      color: #ff4444;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    #progress-bar-wrap {
+      width: 100%;
+      height: 6px;
+      background: #2a1f14;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    #progress-bar {
+      height: 100%;
+      width: 0%;
+      background: #ff4444;
+      transition: width 0.1s;
+    }
+
+    #controls { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    button {
+      flex: 1;
+      padding: 12px;
+      font-size: 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: opacity 0.2s;
+      min-width: 100px;
+    }
+
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button:hover:not(:disabled) { opacity: 0.85; }
+
+    #record-btn  { background-color: #8b1a1a; color: #f0e6d3; }
+    #stoprec-btn { background-color: #c8904a; color: #1a120b; display: none; }
+    #next-btn    { background-color: #4a7c59; color: #f0e6d3; display: none; }
+    #analyze-btn { background-color: #533ab7; color: #f0e6d3; display: none; }
+    #restart-btn { background-color: #3a2a14; color: #a08060; }
+
+    /* 已完成角度卡片 */
+    #completed-angles { display: flex; gap: 10px; }
+
+    .angle-card {
+      flex: 1;
+      background: #2a1f14;
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+      border: 1px solid #3a2e20;
+    }
+
+    .angle-card.done { border-color: #4a7c59; }
+    .angle-card-icon { font-size: 20px; }
+    .angle-card-label { font-size: 11px; color: #a08060; margin-top: 4px; }
+    .angle-card-status { font-size: 11px; color: #a08060; margin-top: 2px; }
+    .angle-card-frames { font-size: 10px; color: #6db87a; }
+
+    /* ===== 上傳影片模式 ===== */
+    #upload-mode { display: none; flex-direction: column; gap: 14px; }
+
+    /* 上傳區三格 */
+    #upload-slots {
+      display: flex;
+      gap: 12px;
+    }
+
+    .upload-slot {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .upload-slot-label {
+      font-size: 13px;
+      color: #6db87a;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .upload-slot-desc {
+      font-size: 11px;
+      color: #a08060;
+      text-align: center;
+    }
+
+    .upload-box {
+      border: 2px dashed #4a7c59;
+      border-radius: 10px;
+      aspect-ratio: 4/3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      background: #0d0d0d;
+      transition: background 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .upload-box:hover { background: #1a2a1a; }
+    .upload-box.uploaded { border-style: solid; border-color: #6db87a; }
+    .upload-box span { font-size: 28px; }
+    .upload-box p { font-size: 12px; color: #a08060; margin-top: 6px; text-align: center; padding: 0 8px; }
+
+    .upload-box video {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+
+    .upload-box .done-badge {
+      display: none;
+      position: absolute;
+      top: 6px; right: 6px;
+      background: #4a7c59;
+      color: white;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+
+    .upload-box.uploaded .done-badge { display: block; }
+
+    #upload-analyze-btn {
+      padding: 14px;
+      font-size: 15px;
+      background-color: #533ab7;
+      color: #f0e6d3;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      width: 100%;
+    }
+
+    #upload-analyze-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    #upload-analyze-btn:hover:not(:disabled) { opacity: 0.85; }
+
+    #upload-progress {
+      display: none;
+      background: #2a1f14;
+      border: 1px solid #4a7c59;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 13px;
+      color: #a08060;
+      line-height: 1.8;
+    }
+
+    /* ===== 右側面板 ===== */
+    #right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    #ai-section {
+      background-color: #2a1f14;
+      border: 1px solid #4a7c59;
+      border-radius: 12px;
+      padding: 20px;
+      min-height: 400px;
+    }
+
+    #ai-section h2 {
+      font-size: 17px;
+      color: #6db87a;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #3a2e20;
+    }
+
+    #ai-result {
+      font-size: 14px;
+      line-height: 1.9;
+      color: #d4c4a8;
+      white-space: pre-wrap;
+    }
+
+    #loading {
+      display: none;
+      text-align: center;
+      color: #6db87a;
+      font-size: 14px;
+      padding: 10px;
+    }
+
+    #joint-data {
+      background-color: #2a1f14;
+      border: 1px solid #4a7c59;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    #joint-data h3 { font-size: 14px; color: #6db87a; margin-bottom: 10px; }
+    #joint-data p { font-size: 13px; color: #a08060; line-height: 1.9; }
+
+    #info-card {
+      background-color: #2a1f14;
+      border: 1px solid #8b5e3c;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    #info-card h3 { font-size: 14px; color: #c8904a; margin-bottom: 10px; }
+    #info-card p { font-size: 13px; color: #a08060; line-height: 1.7; }
+  </style>
+</head>
+<body class="bg-background text-on-background min-h-screen overflow-x-hidden">
+
+<!-- 左側導覽列 -->
+<aside id="sidebar" class="fixed left-0 top-0 h-full w-64 z-40 bg-surface-container-low/90 backdrop-blur-2xl border-r border-outline-variant/20 flex-col py-12 px-2 gap-4 hidden md:flex transition-transform duration-300">
+
+  <!-- Logo -->
+  <div class="px-2 mb-12 flex items-start justify-between">
+    <div>
+      <h1 class="text-2xl font-bold text-[#c3f400] tracking-tighter">⚾ VeloMetric</h1>
+      <p class="text-xs text-on-surface-variant opacity-70 mt-1">AI 投球姿勢分析系統</p>
+    </div>
+    <button onclick="toggleSidebar()"
+      class="text-on-surface-variant hover:text-[#c3f400] transition-colors mt-1">
+      <span class="material-symbols-outlined">close</span>
+    </button>
+  </div>
+
+  <!-- 導覽選單 -->
+  <nav class="flex flex-col gap-1 flex-1">
+    <div onclick="switchToPage('analyze')"
+      class="nav-item active flex items-center gap-3 p-3 bg-[#c3f400]/10 border-r-4 border-[#c3f400] text-[#c3f400] font-bold cursor-pointer hover:translate-x-1 transition-transform duration-300">
+      <span class="material-symbols-outlined">analytics</span>
+      <span class="text-sm">投球分析</span>
+    </div>
+    <div onclick="switchToPage('compare')"
+      class="nav-item flex items-center gap-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer hover:translate-x-1 duration-300">
+      <span class="material-symbols-outlined">compare_arrows</span>
+      <span class="text-sm">比較分析</span>
+    </div>
+    <div onclick="switchToPage('trends')"
+      class="nav-item flex items-center gap-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer hover:translate-x-1 duration-300">
+      <span class="material-symbols-outlined">insights</span>
+      <span class="text-sm">進步趨勢</span>
+    </div>
+    <div onclick="switchToPage('drills')"
+      class="nav-item flex items-center gap-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer hover:translate-x-1 duration-300">
+      <span class="material-symbols-outlined">fitness_center</span>
+      <span class="text-sm">訓練計畫</span>
+    </div>
+    <div onclick="switchToPage('history')"
+      class="nav-item flex items-center gap-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer hover:translate-x-1 duration-300">
+      <span class="material-symbols-outlined">inventory_2</span>
+      <span class="text-sm">歷史紀錄</span>
+    </div>
+  </nav>
+
+  <!-- 底部按鈕 -->
+  <div class="mt-auto flex flex-col gap-1 border-t border-outline-variant/20 pt-6">
+    <button onclick="switchToPage('analyze')"
+      class="bg-[#c3f400] text-[#283500] font-bold text-xs py-3 px-6 rounded flex items-center justify-center gap-2 active:scale-95 transition-all hover:bg-[#abd600]">
+      <span class="material-symbols-outlined text-[18px]">add</span>
+      開始分析
+    </button>
+    <div class="flex items-center gap-3 p-3 text-on-surface-variant hover:text-on-surface cursor-pointer">
+      <span class="material-symbols-outlined">help</span>
+      <span class="text-sm">使用說明</span>
+    </div>
+  </div>
+
+</aside>
+
+<!-- 手機版底部導覽 -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-surface-container-low/90 backdrop-blur-2xl border-t border-outline-variant/20 flex justify-around items-center z-50">
+  <div onclick="switchToPage('analyze')" class="flex flex-col items-center gap-1 text-[#c3f400] cursor-pointer">
+    <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">analytics</span>
+    <span class="text-[10px]">分析</span>
+  </div>
+  <div onclick="switchToPage('compare')" class="flex flex-col items-center gap-1 text-on-surface-variant cursor-pointer">
+    <span class="material-symbols-outlined">compare_arrows</span>
+    <span class="text-[10px]">比較</span>
+  </div>
+  <div onclick="switchToPage('trends')" class="flex flex-col items-center gap-1 text-on-surface-variant cursor-pointer">
+    <span class="material-symbols-outlined">insights</span>
+    <span class="text-[10px]">趨勢</span>
+  </div>
+  <div onclick="switchToPage('history')" class="flex flex-col items-center gap-1 text-on-surface-variant cursor-pointer">
+    <span class="material-symbols-outlined">inventory_2</span>
+    <span class="text-[10px]">歷史</span>
+  </div>
+  <div onclick="switchToPage('profile')" class="flex flex-col items-center gap-1 text-on-surface-variant cursor-pointer">
+    <span class="material-symbols-outlined">person</span>
+    <span class="text-[10px]">個人</span>
+  </div>
+</nav>
+
+  <header class="fixed top-0 right-0 left-0 md:left-64 h-16 px-6 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/30 flex justify-between items-center z-50">
+
+  <!-- 左側標題 -->
+  <div class="flex items-center gap-4">
+    <button onclick="toggleSidebar()"
+      class="text-on-surface-variant hover:text-[#c3f400] transition-colors">
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+    <h2 class="text-xs font-bold tracking-widest text-[#c3f400] uppercase">
+      投球分析系統
+    </h2>
+    <div class="hidden lg:flex items-center gap-4 ml-8">
+      <span class="text-xs font-bold tracking-widest text-[#c3f400] border-b-2 border-[#c3f400] pb-1">分析</span>
+      <span class="text-xs font-bold tracking-widest text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer">比較</span>
+      <span class="text-xs font-bold tracking-widest text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer">趨勢</span>
+    </div>
+  </div>
+
+  <!-- 右側工具列 -->
+  <div class="flex items-center gap-4">
+
+    <!-- 搜尋框 -->
+    <div class="relative hidden sm:block">
+      <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-on-surface-variant text-[18px]">search</span>
+      <input class="bg-surface-container-low border border-outline-variant text-xs pl-8 pr-4 py-1 rounded w-48 focus:ring-1 focus:ring-[#c3f400] focus:border-[#c3f400] outline-none text-on-surface"
+        placeholder="搜尋分析紀錄..." type="text">
+    </div>
+
+    <!-- 通知圖示 -->
+    <span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-[#c3f400] transition-colors">notifications</span>
+
+    <!-- 設定圖示 -->
+    <span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-[#c3f400] transition-colors">settings</span>
+
+    <!-- 登入區域 -->
+    <div id="auth-section" class="flex items-center">
+    </div>
+
+  </div>
+</header>
+
+<!-- 頁面內容間距（避免被頂部列蓋住） -->
+<div class="h-16"></div>
+
+  <!-- 模式切換 -->
+  <div id="mode-tabs" class="flex gap-3 justify-center mb-5">
+    <button class="tab-btn active text-xs font-bold tracking-widest uppercase px-6 py-2 rounded-full border-2 border-[#c3f400] bg-[#c3f400]/10 text-[#c3f400] transition-all duration-200"
+      onclick="switchMode('camera', this)">
+      <span class="material-symbols-outlined text-[16px] align-middle mr-1">videocam</span>
+      即時錄影
+    </button>
+    <button class="tab-btn text-xs font-bold tracking-widest uppercase px-6 py-2 rounded-full border-2 border-outline-variant/30 text-on-surface-variant transition-all duration-200"
+      onclick="switchMode('upload', this)">
+      <span class="material-symbols-outlined text-[16px] align-middle mr-1">upload_file</span>
+      上傳影片
+    </button>
+  </div>
+
+  <!-- ===== 即時攝影機模式 ===== -->
+  <div id="camera-mode">
+
+    <!-- 步驟進度條 -->
+    <div id="steps" class="flex justify-center items-center mb-6 max-w-lg mx-auto">
+      <div class="step flex flex-col items-center gap-1 flex-1">
+        <div id="step1-circle"
+          class="step-circle w-10 h-10 rounded-full border-2 border-[#c3f400] bg-[#c3f400]/20 text-[#c3f400] font-bold flex items-center justify-center transition-all duration-300">
+          1
+        </div>
+        <div id="step1-label" class="text-xs text-[#c3f400] font-bold">正面</div>
+      </div>
+      <div id="line1" class="h-[2px] flex-1 bg-outline-variant/30 mb-4 transition-all duration-300"></div>
+      <div class="step flex flex-col items-center gap-1 flex-1">
+        <div id="step2-circle"
+          class="step-circle w-10 h-10 rounded-full border-2 border-outline-variant/30 bg-surface-container text-on-surface-variant font-bold flex items-center justify-center transition-all duration-300">
+          2
+        </div>
+        <div id="step2-label" class="text-xs text-on-surface-variant">側面</div>
+      </div>
+      <div id="line2" class="h-[2px] flex-1 bg-outline-variant/30 mb-4 transition-all duration-300"></div>
+      <div class="step flex flex-col items-center gap-1 flex-1">
+        <div id="step3-circle"
+          class="step-circle w-10 h-10 rounded-full border-2 border-outline-variant/30 bg-surface-container text-on-surface-variant font-bold flex items-center justify-center transition-all duration-300">
+          3
+        </div>
+        <div id="step3-label" class="text-xs text-on-surface-variant">背面</div>
+      </div>
+      <div id="line3" class="h-[2px] flex-1 bg-outline-variant/30 mb-4 transition-all duration-300"></div>
+      <div class="step flex flex-col items-center gap-1 flex-1">
+        <div id="step4-circle"
+          class="step-circle w-10 h-10 rounded-full border-2 border-outline-variant/30 bg-surface-container text-on-surface-variant font-bold flex items-center justify-center transition-all duration-300">
+          🤖
+        </div>
+        <div id="step4-label" class="text-xs text-on-surface-variant">AI 分析</div>
+      </div>
+    </div>
+
+   <div id="angle-guide" class="glass-card rounded-xl p-4 mb-5 max-w-full mx-auto flex items-center gap-4 border border-outline-variant/20">
+    <div id="angle-icon">🧍</div>
+    <div id="angle-text">
+      <h3 id="angle-title">第一步：正面拍攝</h3>
+      <p id="angle-desc">請面對攝影機站立，確保全身都在畫面內。分析重點：肩膀高度、軀幹旋轉、手臂對稱性</p>
+    </div>
+    <div style="margin-left:auto; display:flex; flex-direction:column; gap:10px; align-items:flex-end;">
+
+      <!-- 投球手別 -->
+      <p style="font-size:13px; color:#a08060;">投球手別：</p>
+      <div style="display:flex; gap:8px;">
+        <button id="btn-right" onclick="setThrows('R')"
+          style="padding:8px 20px; font-size:14px; font-weight:bold;
+          background:#4a7c59; color:#f0e6d3; border:2px solid #6db87a;
+          border-radius:8px; cursor:pointer;">
+          右投
+        </button>
+        <button id="btn-left" onclick="setThrows('L')"
+          style="padding:8px 20px; font-size:14px; font-weight:bold;
+          background:#2a1f14; color:#a08060; border:2px solid #3a2e20;
+          border-radius:8px; cursor:pointer;">
+          左投
+        </button>
+      </div>
+
+      <!-- 等級選擇 -->
+      <p style="font-size:13px; color:#a08060;">投手等級：</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+        <button id="btn-beginner" onclick="setLevel('beginner')"
+          style="padding:8px 14px; font-size:13px; font-weight:bold;
+          background:#2a1f14; color:#a08060; border:2px solid #3a2e20;
+          border-radius:8px; cursor:pointer;">
+          🧒 初學者
+        </button>
+        <button id="btn-youth" onclick="setLevel('youth')"
+          style="padding:8px 14px; font-size:13px; font-weight:bold;
+          background:#2a1f14; color:#a08060; border:2px solid #3a2e20;
+          border-radius:8px; cursor:pointer;">
+          🧑 青少年
+        </button>
+        <button id="btn-amateur" onclick="setLevel('amateur')"
+          style="padding:8px 14px; font-size:13px; font-weight:bold;
+          background:#4a7c59; color:#f0e6d3; border:2px solid #6db87a;
+          border-radius:8px; cursor:pointer;">
+          🙋 業餘
+        </button>
+        <button id="btn-professional" onclick="setLevel('professional')"
+          style="padding:8px 14px; font-size:13px; font-weight:bold;
+          background:#2a1f14; color:#a08060; border:2px solid #3a2e20;
+          border-radius:8px; cursor:pointer;">
+          ⭐ 職業
+        </button>
+      </div>
+
+    </div>
+    <!-- 投球風格 -->
+      <p style="font-size:13px; color:#a08060; margin-top:4px;">投球風格：</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+        <button id="btn-overhead" onclick="setStyle('overhead')"
+          style="padding:8px 14px; font-size:13px; font-weight:bold;
+          background:#4a7c59; color:#f0e6d3; border:2px solid #6db87a;
+          border-radius:8px; cursor:pointer;">
+          ⬆️ 正上方
+        </button>
+        <button id="btn-threequarter" onclick="setStyle('threequarter')"
+          style="padding:8px 14px; font-size:13px; font-weight:bold;
+          background:#2a1f14; color:#a08060; border:2px solid #3a2e20;
+          border-radius:8px; cursor:pointer;">
+          ↗️ 四分之三
+        </button>
+        <button id="btn-sidearm" onclick="setStyle('sidearm')"
+          style="padding:8px 14px; font-size:13px; font-weight:bold;
+          background:#2a1f14; color:#a08060; border:2px solid #3a2e20;
+          border-radius:8px; cursor:pointer;">
+          ➡️ 側投
+        </button>
+        <button id="btn-submarine" onclick="setStyle('submarine')"
+          style="padding:8px 14px; font-size:13px; font-weight:bold;
+          background:#2a1f14; color:#a08060; border:2px solid #3a2e20;
+          border-radius:8px; cursor:pointer;">
+          ⬇️ 下投
+        </button>
+      </div>
+  </div>
+
+<div id="main-layout" class="md:pl-64 px-6 py-6">
+      <div id="left-panel">
+       <div id="camera-section" class="front relative rounded-xl overflow-hidden neon-glow-border">
+          <div class="scanner-effect"></div>
+          <video id="video" autoplay playsinline></video>
+          <canvas id="canvas"></canvas>
+          <span id="camera-status">● 載入中...</span>
+          <span id="rec-indicator">⏺ 錄影中</span>
+        </div>
+
+        <div id="progress-bar-wrap">
+          <div id="progress-bar"></div>
+        </div>
+
+       <div id="controls" class="flex gap-2 flex-wrap">
+          <button id="record-btn" onclick="startRecording()">⏺ 開始錄影</button>
+          <button id="stoprec-btn" onclick="stopRecording()">⏹ 停止錄影</button>
+          <button id="next-btn" onclick="nextAngle()">➡ 下一角度</button>
+          <button id="analyze-btn" onclick="runAnalysis(angleData)">🤖 AI 分析</button>
+          <button id="restart-btn" onclick="restartAll()">🔄 重新開始</button>
+        </div>
+
+        <div id="completed-angles" class="flex gap-3">
+          <div class="angle-card flex-1 glass-card rounded-xl p-3 text-center border border-outline-variant/20 transition-all duration-300" id="card-front">
+            <div class="angle-card-icon text-2xl mb-1">🧍</div>
+            <div class="angle-card-label text-xs text-on-surface-variant mb-1">正面</div>
+            <div class="angle-card-status text-xs text-on-surface-variant">等待錄影</div>
+            <div class="angle-card-frames text-xs text-[#c3f400]"></div>
+          </div>
+          <div class="angle-card flex-1 glass-card rounded-xl p-3 text-center border border-outline-variant/20 transition-all duration-300" id="card-side">
+            <div class="angle-card-icon text-2xl mb-1">🚶</div>
+            <div class="angle-card-label text-xs text-on-surface-variant mb-1">側面</div>
+            <div class="angle-card-status text-xs text-on-surface-variant">等待錄影</div>
+            <div class="angle-card-frames text-xs text-[#c3f400]"></div>
+          </div>
+          <div class="angle-card flex-1 glass-card rounded-xl p-3 text-center border border-outline-variant/20 transition-all duration-300" id="card-back">
+            <div class="angle-card-icon text-2xl mb-1">🔙</div>
+            <div class="angle-card-label text-xs text-on-surface-variant mb-1">背面</div>
+            <div class="angle-card-status text-xs text-on-surface-variant">等待錄影</div>
+            <div class="angle-card-frames text-xs text-[#c3f400]"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="right-panel">
+        <!-- AI 分析結果 -->
+      <div id="ai-section" class="glass-card rounded-xl p-5 border border-outline-variant/20 min-h-[400px]">
+        <div class="flex items-center gap-2 mb-4 pb-3 border-b border-outline-variant/20">
+          <span class="material-symbols-outlined text-[#c3f400] text-[18px]">smart_toy</span>
+          <h2 class="text-xs font-bold tracking-widest text-[#c3f400] uppercase">AI 教練建議</h2>
+        </div>
+        <div id="loading" style="display:none"
+          class="flex items-center gap-2 text-[#c3f400] text-sm py-3">
+          <span class="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+          AI 分析投球動作中，請稍候...
+        </div>
+        <p id="ai-result" class="text-sm text-on-surface leading-relaxed">
+          請依照步驟從三個角度錄製投球動作：<br><br>
+          🧍 <b>正面</b>：分析肩膀高度、軀幹旋轉<br>
+          🚶 <b>側面</b>：分析手臂軌跡、釋球點<br>
+          🔙 <b>背面</b>：分析腳步、重心轉移
+        </p>
+      </div>
+
+      <!-- 即時關節角度 -->
+      <div id="joint-data" class="glass-card rounded-xl p-4 border border-outline-variant/20">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="material-symbols-outlined text-[#c3f400] text-[16px]">straighten</span>
+          <h3 class="text-xs font-bold tracking-widest text-on-surface-variant uppercase">即時關節角度</h3>
+        </div>
+        <p id="joint-info" class="text-sm text-on-surface-variant leading-relaxed">偵測中...</p>
+      </div>
+
+      <!-- 分析重點 -->
+      <div id="info-card" class="glass-card rounded-xl p-4 border border-outline-variant/20">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="material-symbols-outlined text-[#c3f400] text-[16px]">checklist</span>
+          <h3 class="text-xs font-bold tracking-widest text-on-surface-variant uppercase">各角度分析重點</h3>
+        </div>
+        <p class="text-sm text-on-surface-variant leading-relaxed">
+          🧍 <b class="text-on-surface">正面</b>：肩膀高度、軀幹旋轉、手臂對稱<br>
+          🚶 <b class="text-on-surface">側面</b>：手臂軌跡、釋球點、重心前移<br>
+          🔙 <b class="text-on-surface">背面</b>：腳步踏出、髖部旋轉、跟進動作
+        </p>
+      </div>
+
+      <!-- 免責聲明 -->
+      <div class="glass-card rounded-xl p-4 border border-red-900/30">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="material-symbols-outlined text-error text-[16px]">warning</span>
+          <h3 class="text-xs font-bold tracking-widest text-error uppercase">注意事項</h3>
+        </div>
+        <p class="text-xs text-on-surface-variant leading-relaxed">
+          本系統由 AI 輔助分析，結果僅供參考。<br>
+          建議搭配專業教練指導使用。
+        </p>
+      </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===== 上傳影片模式 ===== -->
+  <div id="upload-mode">
+
+    <div style="max-width:1200px; margin: 0 auto; display:flex; gap:20px; align-items:flex-start;">
+
+      <div style="flex:1.2; display:flex; flex-direction:column; gap:14px;">
+
+        <!-- 三個上傳格 -->
+        <div id="upload-slots">
+
+          <!-- 正面 -->
+          <div class="upload-slot">
+            <div class="upload-slot-label">🧍 正面影片</div>
+            <div class="upload-slot-desc">面對攝影機投球</div>
+            <div class="upload-box" id="box-front" onclick="document.getElementById('file-front').click()">
+              <span>📁</span>
+              <p>點擊上傳正面影片</p>
+              <video id="prev-front" muted loop></video>
+              <div class="done-badge">✅ 已上傳</div>
+            </div>
+            <input type="file" id="file-front" accept="video/*" style="display:none"
+              onchange="handleUpload(this,'front')">
+          </div>
+
+          <!-- 側面 -->
+          <div class="upload-slot">
+            <div class="upload-slot-label">🚶 側面影片</div>
+            <div class="upload-slot-desc">投球手臂那側朝鏡頭</div>
+            <div class="upload-box" id="box-side" onclick="document.getElementById('file-side').click()">
+              <span>📁</span>
+              <p>點擊上傳側面影片</p>
+              <video id="prev-side" muted loop></video>
+              <div class="done-badge">✅ 已上傳</div>
+            </div>
+            <input type="file" id="file-side" accept="video/*" style="display:none"
+              onchange="handleUpload(this,'side')">
+          </div>
+
+          <!-- 背面 -->
+          <div class="upload-slot">
+            <div class="upload-slot-label">🔙 背面影片</div>
+            <div class="upload-slot-desc">背對攝影機投球</div>
+            <div class="upload-box" id="box-back" onclick="document.getElementById('file-back').click()">
+              <span>📁</span>
+              <p>點擊上傳背面影片</p>
+              <video id="prev-back" muted loop></video>
+              <div class="done-badge">✅ 已上傳</div>
+            </div>
+            <input type="file" id="file-back" accept="video/*" style="display:none"
+              onchange="handleUpload(this,'back')">
+          </div>
+
+        </div>
+
+        <button id="upload-analyze-btn" onclick="analyzeUploadedVideos()" disabled>
+          🤖 分析三角度影片
+        </button>
+
+        <!-- 分析進度 -->
+        <div id="upload-progress">
+          <div id="upload-progress-text">準備分析...</div>
+          <div id="progress-bar-wrap2" style="margin-top:8px; height:6px; background:#3a2e20; border-radius:3px; overflow:hidden;">
+            <div id="progress-bar2" style="height:100%; width:0%; background:#6db87a; transition:width 0.2s;"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 右側 AI 建議（共用） -->
+      <div style="flex:1; display:flex; flex-direction:column; gap:14px;">
+        <div id="ai-section2" style="background:#2a1f14; border:1px solid #4a7c59; border-radius:12px; padding:20px; min-height:400px;">
+          <h2 style="font-size:17px; color:#6db87a; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid #3a2e20;">🤖 AI 教練建議</h2>
+          <div id="loading2" style="display:none; text-align:center; color:#6db87a; font-size:14px; padding:10px;">⏳ AI 分析影片中，請稍候...</div>
+          <p id="ai-result2" style="font-size:14px; line-height:1.9; color:#d4c4a8; white-space:pre-wrap;">
+            請上傳三個角度的影片：<br><br>
+            🧍 <b>正面</b>：分析肩膀高度、軀幹旋轉<br>
+            🚶 <b>側面</b>：分析手臂軌跡、釋球點<br>
+            🔙 <b>背面</b>：分析腳步、重心轉移<br><br>
+            三個都上傳後點「分析三角度影片」！
+          </p>
+        </div>
+
+        <div style="background:#2a1f14; border:1px solid #8b5e3c; border-radius:12px; padding:16px;">
+          <h3 style="font-size:14px; color:#c8904a; margin-bottom:10px;">📋 拍攝建議</h3>
+          <p style="font-size:13px; color:#a08060; line-height:1.7;">
+            ✦ 確保全身都在畫面內<br>
+            ✦ 光線充足，背景簡單<br>
+            ✦ 錄製完整一次投球動作<br>
+            ✦ 支援 MP4、MOV、AVI
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // Supabase 設定
+const SUPABASE_URL = 'https://vsmcouqxnsmwabqoktpe.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzbWNvdXF4bnNtd2FicW9rdHBlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMjc5OTMsImV4cCI6MjA5NTgwMzk5M30.9HKfYp7ctGxroZsJcvLAepCsw0s-j-l0azjw_3JkVGE';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// 目前登入的使用者
+let currentUser = null;
+
+// 檢查登入狀態
+async function checkAuth() {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (session) {
+    currentUser = session.user;
+    showLoggedIn(currentUser);
+  } else {
+    showLoggedOut();
+  }
+}
+
+// Google 登入
+async function signInWithGoogle() {
+  await supabaseClient.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.href
+    }
+  });
+}
+
+// 登出
+async function signOut() {
+  await supabaseClient.auth.signOut();
+  currentUser = null;
+  showLoggedOut();
+}
+
+// 顯示已登入狀態
+function showLoggedIn(user) {
+  const authSection = document.getElementById('auth-section');
+  if (!authSection) {
+    console.warn('auth-section not found in DOM. Skipping logged-in UI render.');
+    return;
+  }
+  authSection.innerHTML = `
+    <div style="display:flex; align-items:center; gap:10px; justify-content:center; flex-wrap:wrap;">
+      <img src="${user.user_metadata.avatar_url}" 
+        style="width:32px; height:32px; border-radius:50%; border:2px solid #4a7c59;">
+      <span style="font-size:13px; color:#f0e6d3;">${user.user_metadata.full_name}</span>
+      <span id="usage-count" style="font-size:12px; color:#6db87a;"></span>
+      <button onclick="signOut()"
+        style="padding:6px 14px; font-size:12px; font-weight:bold;
+        background:#3a2a14; color:#a08060; border:1px solid #4a7c59;
+        border-radius:6px; cursor:pointer;">
+        登出
+      </button>
+    </div>
+  `;
+  loadUsageCount();
+}
+
+// 顯示未登入狀態
+function showLoggedOut() {
+  const authSection = document.getElementById('auth-section');
+  if (!authSection) {
+    console.warn('auth-section not found in DOM. Skipping logged-out UI render.');
+    return;
+  }
+  authSection.innerHTML = `
+    <button onclick="signInWithGoogle()"
+      style="padding:10px 24px; font-size:14px; font-weight:bold;
+      background:#4a7c59; color:#f0e6d3; border:none;
+      border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:8px;">
+      <img src="https://www.google.com/favicon.ico" style="width:16px; height:16px;">
+      使用 Google 登入
+    </button>
+  `;
+}
+
+// 讀取今日使用次數
+async function loadUsageCount() {
+  if (!currentUser) return;
+
+  const today = new Date().toISOString().split('T')[0];
+  const { data } = await supabaseClient
+    .from('usage')
+    .select('count')
+    .eq('user_id', currentUser.id)
+    .eq('date', today)
+    .single();
+
+  const count = data ? data.count : 0;
+  const remaining = 10 - count;
+  document.getElementById('usage-count').textContent = `今日剩餘：${remaining} 次`;
+}
+
+// 檢查並更新使用次數
+async function checkAndUpdateUsage() {
+  if (!currentUser) {
+    alert('請先登入才能使用 AI 分析！');
+    return false;
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const { data } = await supabaseClient
+    .from('usage')
+    .select('count')
+    .eq('user_id', currentUser.id)
+    .eq('date', today)
+    .single();
+
+  const count = data ? data.count : 0;
+
+  if (count >= 10) {
+    alert('今日分析次數已達上限（10次），明天再來！');
+    return false;
+  }
+
+  // 更新次數
+  if (data) {
+    await supabaseClient
+      .from('usage')
+      .update({ count: count + 1 })
+      .eq('user_id', currentUser.id)
+      .eq('date', today);
+  } else {
+    await supabaseClient
+      .from('usage')
+      .insert({ user_id: currentUser.id, date: today, count: 1 });
+  }
+
+  loadUsageCount();
+  return true;
+}
+    // ===== 共用函式 =====
+    const ANGLES = [
+      { key:'front', name:'正面', icon:'🧍', borderClass:'front', cardId:'card-front',
+        title:'第一步：正面拍攝',
+        desc:'請面對攝影機站立，確保全身都在畫面內。分析重點：肩膀高度、軀幹旋轉、手臂對稱性' },
+      { key:'side',  name:'側面', icon:'🚶', borderClass:'side',  cardId:'card-side',
+        title:'第二步：側面拍攝',
+        desc:'請側身對著攝影機，投球手臂那側朝向鏡頭。分析重點：手臂軌跡、釋球點高度、重心前移' },
+      { key:'back',  name:'背面', icon:'🔙', borderClass:'back',  cardId:'card-back',
+        title:'第三步：背面拍攝',
+        desc:'請背對攝影機站立，確保全身都在畫面內。分析重點：腳步踏出方向、髖部旋轉、跟進動作' }
+    ];
+
+    // 投球手別（預設右投）
+    let throwingHand = 'R';
+
+    function setThrows(hand) {
+      throwingHand = hand;
+      document.getElementById('btn-right').style.background = hand === 'R' ? '#4a7c59' : '#2a1f14';
+      document.getElementById('btn-right').style.color = hand === 'R' ? '#f0e6d3' : '#a08060';
+      document.getElementById('btn-right').style.borderColor = hand === 'R' ? '#6db87a' : '#3a2e20';
+      document.getElementById('btn-left').style.background = hand === 'L' ? '#4a7c59' : '#2a1f14';
+      document.getElementById('btn-left').style.color = hand === 'L' ? '#f0e6d3' : '#a08060';
+      document.getElementById('btn-left').style.borderColor = hand === 'L' ? '#6db87a' : '#3a2e20';
+    }function calculateAngle(a, b, c) {
+      const radians = Math.atan2(c.y - b.y, c.x - b.x)
+                    - Math.atan2(a.y - b.y, a.x - b.x);
+      let angle = Math.abs(radians * 180.0 / Math.PI);
+      if (angle > 180) angle = 360 - angle;
+      return Math.round(angle);
+    }
+    // 等級選擇（預設業餘）
+    let pitcherLevel = 'amateur';
+
+    function setLevel(level) {
+      pitcherLevel = level;
+      const levels = ['beginner', 'youth', 'amateur', 'professional'];
+      levels.forEach(l => {
+        const btn = document.getElementById(`btn-${l}`);
+        if (l === level) {
+          btn.style.background = '#4a7c59';
+          btn.style.color = '#f0e6d3';
+          btn.style.borderColor = '#6db87a';
+        } else {
+          btn.style.background = '#2a1f14';
+          btn.style.color = '#a08060';
+          btn.style.borderColor = '#3a2e20';
+        }
+      });
+    }
+    // 投球風格（預設正上方）
+    let pitchingStyle = 'overhead';
+
+    function setStyle(style) {
+      pitchingStyle = style;
+      const styles = ['overhead', 'threequarter', 'sidearm', 'submarine'];
+      styles.forEach(s => {
+        const btn = document.getElementById(`btn-${s}`);
+        if (s === style) {
+          btn.style.background = '#4a7c59';
+          btn.style.color = '#f0e6d3';
+          btn.style.borderColor = '#6db87a';
+        } else {
+          btn.style.background = '#2a1f14';
+          btn.style.color = '#a08060';
+          btn.style.borderColor = '#3a2e20';
+        }
+      });
+    }
+
+    function extractAngles(lm) {
+      return {
+        rightElbow:    calculateAngle(lm[12], lm[14], lm[16]),
+        leftElbow:     calculateAngle(lm[11], lm[13], lm[15]),
+        rightShoulder: calculateAngle(lm[24], lm[12], lm[14]),
+        leftShoulder:  calculateAngle(lm[23], lm[11], lm[13]),
+        rightKnee:     calculateAngle(lm[24], lm[26], lm[28]),
+        leftKnee:      calculateAngle(lm[23], lm[25], lm[27])
+      };
+    }
+
+    const avg = (arr, key) =>
+      Math.round(arr.reduce((s, f) => s + f[key], 0) / arr.length);
+
+    function summarize(frames, label) {
+      if (!frames || frames.length === 0) return `【${label}】無數據`;
+      const total = frames.length;
+      const s = frames.slice(0, Math.floor(total * 0.2));
+      const m = frames.slice(Math.floor(total * 0.4), Math.floor(total * 0.6));
+      const e = frames.slice(Math.floor(total * 0.8));
+      return `【${label}角度 - ${total}幀】
+起始：右肘${avg(s,'rightElbow')}° 左肘${avg(s,'leftElbow')}° 右肩${avg(s,'rightShoulder')}° 左肩${avg(s,'leftShoulder')}° 右膝${avg(s,'rightKnee')}° 左膝${avg(s,'leftKnee')}°
+加速：右肘${avg(m,'rightElbow')}° 左肘${avg(m,'leftElbow')}° 右肩${avg(m,'rightShoulder')}° 左肩${avg(m,'leftShoulder')}° 右膝${avg(m,'rightKnee')}° 左膝${avg(m,'leftKnee')}°
+跟進：右肘${avg(e,'rightElbow')}° 左肘${avg(e,'leftElbow')}° 右肩${avg(e,'rightShoulder')}° 左肩${avg(e,'leftShoulder')}° 右膝${avg(e,'rightKnee')}° 左膝${avg(e,'leftKnee')}°`;
+    }
+
+    async function runAnalysis(data, resultId = 'ai-result', loadingId = 'loading') {
+  // 檢查登入和使用次數
+  const canUse = await checkAndUpdateUsage();
+  if (!canUse) return;
+  document.getElementById(loadingId).style.display = 'block';
+  document.getElementById(resultId).textContent = '';
+
+  const avg = (arr, key) =>
+    Math.round(arr.reduce((s, f) => s + f[key], 0) / arr.length);
+
+  // 過濾異常值（去除偏差超過2個標準差的幀）
+  function filterOutliers(arr, key) {
+    const values = arr.map(f => f[key]);
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const std = Math.sqrt(values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length);
+    return arr.filter(f => Math.abs(f[key] - mean) <= 2 * std);
+  }
+
+  // 對每個關節過濾後取平均
+  function cleanAvg(arr, key) {
+    const filtered = filterOutliers(arr, key);
+    return avg(filtered, key);
+  }
+
+  // 整理三個階段的乾淨數據
+  function buildPhaseData(frames) {
+    const total = frames.length;
+    const s = frames.slice(0, Math.floor(total * 0.2));
+    const m = frames.slice(Math.floor(total * 0.4), Math.floor(total * 0.6));
+    const e = frames.slice(Math.floor(total * 0.8));
+
+    return {
+      start: {
+        rightElbow:    cleanAvg(s, 'rightElbow'),
+        leftElbow:     cleanAvg(s, 'leftElbow'),
+        rightShoulder: cleanAvg(s, 'rightShoulder'),
+        leftShoulder:  cleanAvg(s, 'leftShoulder'),
+        rightKnee:     cleanAvg(s, 'rightKnee'),
+        leftKnee:      cleanAvg(s, 'leftKnee')
+      },
+      middle: {
+        rightElbow:    cleanAvg(m, 'rightElbow'),
+        leftElbow:     cleanAvg(m, 'leftElbow'),
+        rightShoulder: cleanAvg(m, 'rightShoulder'),
+        leftShoulder:  cleanAvg(m, 'leftShoulder'),
+        rightKnee:     cleanAvg(m, 'rightKnee'),
+        leftKnee:      cleanAvg(m, 'leftKnee')
+      },
+      end: {
+        rightElbow:    cleanAvg(e, 'rightElbow'),
+        leftElbow:     cleanAvg(e, 'leftElbow'),
+        rightShoulder: cleanAvg(e, 'rightShoulder'),
+        leftShoulder:  cleanAvg(e, 'leftShoulder'),
+        rightKnee:     cleanAvg(e, 'rightKnee'),
+        leftKnee:      cleanAvg(e, 'leftKnee')
+      }
+    };
+  }
+
+  // 整理三個角度的乾淨數據
+  const cleanData = {
+    front: data.front ? buildPhaseData(data.front) : null,
+    side:  data.side  ? buildPhaseData(data.side)  : null,
+    back:  data.back  ? buildPhaseData(data.back)  : null
+  };
+
+  // 用最完整的角度數據做評分和比對（優先用正面）
+  const mainData = cleanData.front || cleanData.side || cleanData.back;
+
+  // 呼叫評分演算法
+  const scoreResult = scorePitcher(mainData, pitcherLevel);
+  // 相似球員改由 Groq AI 自行判斷
+
+  // 整理數學評分文字
+  const scoreText = `
+手肘角度評分：${scoreResult.scores.elbow}分（理想範圍 80-100°）
+肩膀平衡評分：${scoreResult.scores.shoulder}分（左右差異越小越好）
+膝蓋彎曲評分：${scoreResult.scores.knee}分（起始理想 130-160°）
+跟進動作評分：${scoreResult.scores.followThrough}分（跟進手肘應>130°）
+數學計算總分：${scoreResult.total}分／100分
+傷害風險：${scoreResult.injuryRisk.length > 0 ? scoreResult.injuryRisk.join('、') : '無明顯風險'}`;
+
+  // 整理角度摘要
+  function summarize(phaseData, label) {
+    if (!phaseData) return `【${label}】無數據`;
+    return `【${label}角度】
+起始：右肘${phaseData.start.rightElbow}° 左肘${phaseData.start.leftElbow}° 右肩${phaseData.start.rightShoulder}° 左肩${phaseData.start.leftShoulder}° 右膝${phaseData.start.rightKnee}° 左膝${phaseData.start.leftKnee}°
+加速：右肘${phaseData.middle.rightElbow}° 左肘${phaseData.middle.leftElbow}° 右肩${phaseData.middle.rightShoulder}° 左肩${phaseData.middle.leftShoulder}° 右膝${phaseData.middle.rightKnee}° 左膝${phaseData.middle.leftKnee}°
+跟進：右肘${phaseData.end.rightElbow}° 左肘${phaseData.end.leftElbow}° 右肩${phaseData.end.rightShoulder}° 左肩${phaseData.end.leftShoulder}° 右膝${phaseData.end.rightKnee}° 左膝${phaseData.end.leftKnee}°`;
+  }
+
+  const prompt = `你是一位專業棒球投球姿勢分析教練，請用繁體中文、口語化的方式回答，像朋友聊天一樣。
+
+【重要規則】
+- 數學評分由程式計算，你只需要用口語解釋，不要自己重新判斷好壞
+- 相似投手必須和投手手別相同，右投只能推薦右投投手，左投只能推薦左投投手
+- 評分標準要考慮每位投手的個人風格，不要用單一標準批評
+- 手肘角度因投球風格不同會有差異，不要因為不在80-100°就說是問題
+- 如果數學評分在75分以上，整體評價應該是正面的，不要過度批評
+- 目前分析的等級是【${scoreResult.levelName}】，請根據這個等級給予適合的建議和鼓勵
+- 初學者和青少年要以鼓勵為主，指出優點後再給改善建議
+- 業餘球員給實用的技術建議
+- 職業球員給針對細節的進階建議
+- 整體評分換算成10分制時，75分以上屬於優秀水準
+- 改善建議只能根據程式計算的傷害風險和低分項目，程式說沒風險就不要提傷害，不要自己加問題
+- 手肘角度評分低不代表有問題，可能只是投球風格不同，不要因此建議改善手肘
+- 相似投手判斷時要考慮：投球手別、手臂釋放角度（正上方/四分之三/側投/下投）、軀幹傾斜程度，三個都要符合才算相似
+- 如果找不到確定是現役的相似投手，就說「目前數據特徵較獨特，暫時找不到非常相似的現役投手」
+- 傷害風險只根據程式計算結果說明，程式說沒風險就不要自己加風險
+- 如果整體評分高，改善建議要給進階建議，不要說基本問題
+
+【程式計算結果】
+${scoreText}
+
+【投球風格特徵】
+投球手別：${throwingHand === 'R' ? '右投（只能推薦右投投手）' : '左投（只能推薦左投投手）'}
+投球手肘角度：${Math.min(mainData.middle.rightElbow, mainData.middle.leftElbow)}°
+手臂釋放角度：${{
+  overhead: '正上方（overhead）',
+  threequarter: '四分之三（three-quarter）',
+  sidearm: '側投（sidearm）',
+  submarine: '下投（submarine）'
+}[pitchingStyle]}
+肩膀傾斜差異：${Math.abs(mainData.middle.rightShoulder - mainData.middle.leftShoulder)}°
+軀幹前傾程度：${Math.min(mainData.end.rightShoulder, mainData.end.leftShoulder)}°
+起始膝蓋角度：${Math.min(mainData.start.rightKnee, mainData.start.leftKnee)}°
+程式評分低分項目：${
+  Object.entries(scoreResult.scores)
+    .filter(([k, v]) => v < 80)
+    .map(([k]) => ({
+      elbow: '手肘角度',
+      shoulder: '肩膀平衡',
+      knee: '膝蓋彎曲',
+      followThrough: '跟進動作'
+    }[k]))
+    .join('、') || '無明顯低分項目'
+}
+程式計算傷害風險：${scoreResult.injuryRisk.length > 0 ? scoreResult.injuryRisk.join('、') : '無，不要提任何傷害風險'}
+程式標記低分項目：${
+  Object.entries(scoreResult.scores)
+    .filter(([k, v]) => v < 80)
+    .map(([k]) => ({
+      elbow: '手肘角度',
+      shoulder: '肩膀平衡',
+      knee: '膝蓋彎曲',
+      followThrough: '跟進動作'
+    }[k]))
+    .join('、') || '無，不要提任何關節角度問題，只給策略性進階建議'
+}
+
+【三個角度的關節數據】
+${summarize(cleanData.front, '正面')}
+${summarize(cleanData.side, '側面')}
+${summarize(cleanData.back, '背面')}
+
+請依照以下格式回答：
+
+⭐ 整體評分：${scoreResult.total} / 100 分
+（根據數學計算結果用一句話說明整體水準）
+
+🌟 最相似的MLB現役投手：
+（根據以上關節角度數據的特徵，你用自己對MLB投手的專業知識判斷，不要參考我提供的相似投手列表。
+分析投球手臂角度、軀幹傾斜、步伐特徵後，說明最像哪位MLB現役投手，以及哪些具體特徵相似。
+只能推薦投手，不能推薦打者。）
+
+📋 三個角度分析：
+正面：（說明肩膀、軀幹狀況）
+側面：（說明手臂軌跡、釋球點）
+背面：（說明腳步、重心）
+
+⚠️ 需要注意的地方：
+（只根據程式計算的傷害風險說明，如果無風險就說「目前沒有明顯的傷害風險」）
+
+✅ 改善建議：
+（根據評分較低的項目給具體建議，如果整體分數高就給進階建議）
+
+🏋️ 推薦練習：
+（2個具體的練習動作）`;
+
+  try {
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ prompt })
+      });
+    const d = await response.json();
+    if (d.error) {
+      document.getElementById(resultId).textContent = '❌ API 錯誤：' + d.error.message;
+      return;
+    }
+    document.getElementById(resultId).textContent = d.choices[0].message.content;
+
+  } catch (err) {
+    document.getElementById(resultId).textContent = '分析失敗：' + err.message;
+  }
+
+  // 儲存分析結果到 Supabase
+  if (currentUser) {
+    await saveSession(data, scoreResult, resultId === 'ai-result' ? 
+      document.getElementById('ai-result').textContent : 
+      document.getElementById('ai-result2').textContent
+    );
+  }
+
+  document.getElementById(loadingId).style.display = 'none';
+}
+
+    // ===== 模式切換 =====
+    function switchMode(mode, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active', 'border-[#c3f400]', 'bg-[#c3f400]/10', 'text-[#c3f400]');
+    b.classList.add('border-outline-variant/30', 'text-on-surface-variant');
+  });
+  btn.classList.add('active', 'border-[#c3f400]', 'bg-[#c3f400]/10', 'text-[#c3f400]');
+  btn.classList.remove('border-outline-variant/30', 'text-on-surface-variant');
+  document.getElementById('camera-mode').style.display = mode === 'camera' ? 'block' : 'none';
+  document.getElementById('upload-mode').style.display = mode === 'upload'  ? 'block' : 'none';
+}
+
+    // ===== 即時攝影機模式 =====
+    const video  = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx    = canvas.getContext('2d');
+
+    let latestLandmarks = null;
+    let currentStep = 0;
+    let isRecording = false;
+    let recordedFrames = [];
+    let frameCount = 0;
+    const MAX_FRAMES = 150;
+    const angleData = { front: null, side: null, back: null };
+
+    function onResults(results) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (results.poseLandmarks) {
+        latestLandmarks = results.poseLandmarks;
+
+        // 只畫身體骨架，排除臉部關節點（0-10是臉部）
+        const bodyConnections = POSE_CONNECTIONS.filter(
+          conn => conn[0] > 10 && conn[1] > 10
+        );
+        drawConnectors(ctx, results.poseLandmarks, bodyConnections, {
+          color: '#4a7c59', lineWidth: 3
+        });
+
+        // 只畫身體關節點，排除臉部（0-10是臉部）
+        const bodyLandmarks = results.poseLandmarks.map((lm, i) =>
+          i > 10 ? lm : { ...lm, visibility: 0 }
+        );
+        drawLandmarks(ctx, bodyLandmarks, {
+          color: '#c8904a', fillColor: '#8b5e3c', lineWidth: 1, radius: 5
+        });
+        const a = extractAngles(results.poseLandmarks);
+        document.getElementById('joint-info').innerHTML =
+          `右手肘：${a.rightElbow}° ／ 左手肘：${a.leftElbow}°<br>` +
+          `右肩：${a.rightShoulder}° ／ 左肩：${a.leftShoulder}°<br>` +
+          `右膝：${a.rightKnee}° ／ 左膝：${a.leftKnee}°`;
+
+        if (isRecording && frameCount < MAX_FRAMES) {
+          recordedFrames.push({ frame: frameCount, ...a });
+          frameCount++;
+          document.getElementById('progress-bar').style.width = (frameCount / MAX_FRAMES * 100) + '%';
+          if (frameCount >= MAX_FRAMES) stopRecording();
+        }
+      }
+    }
+
+    async function initCamera() {
+      const pose = new Pose({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}` });
+      pose.setOptions({ modelComplexity:1, smoothLandmarks:true, minDetectionConfidence:0.5, minTrackingConfidence:0.5 });
+      pose.onResults(onResults);
+
+      const camera = new Camera(video, {
+        onFrame: async () => { await pose.send({ image: video }); },
+        width: 640, height: 480
+      });
+      await camera.start();
+
+      document.getElementById('camera-status').textContent = '● 偵測中';
+      document.getElementById('camera-status').style.color = '#6db87a';
+    }
+
+    function updateStepUI() {
+      const angle = ANGLES[currentStep];
+      document.getElementById('angle-icon').textContent = angle.icon;
+      document.getElementById('angle-title').textContent = angle.title;
+      document.getElementById('angle-desc').textContent = angle.desc;
+      document.getElementById('camera-section').className = angle.borderClass;
+
+      ANGLES.forEach((a, i) => {
+        const circle = document.getElementById(`step${i+1}-circle`);
+        const label  = document.getElementById(`step${i+1}-label`);
+        const line   = document.getElementById(`line${i+1}`);
+        if (i < currentStep) {
+          circle.className = 'step-circle done'; circle.textContent = '✓';
+          label.className  = 'step-label done';
+          if (line) line.className = 'step-line done';
+        } else if (i === currentStep) {
+          circle.className = 'step-circle active'; circle.textContent = i+1;
+          label.className  = 'step-label active';
+        } else {
+          circle.className = 'step-circle'; circle.textContent = i+1;
+          label.className  = 'step-label';
+        }
+      });
+    }
+
+    function startRecording() {
+      if (!latestLandmarks) {
+        document.getElementById('ai-result').textContent = '請先讓 MediaPipe 偵測到你的身體！';
+        return;
+      }
+      recordedFrames = []; frameCount = 0; isRecording = true;
+      document.getElementById('rec-indicator').style.display = 'block';
+      document.getElementById('record-btn').style.display   = 'none';
+      document.getElementById('stoprec-btn').style.display  = 'inline-block';
+      document.getElementById('next-btn').style.display     = 'none';
+      document.getElementById('progress-bar').style.width   = '0%';
+      document.getElementById('ai-result').textContent =
+        `🔴 ${ANGLES[currentStep].name}角度錄影中！做完整投球動作後點「停止錄影」`;
+    }
+
+    function stopRecording() {
+      isRecording = false;
+      document.getElementById('rec-indicator').style.display = 'none';
+      document.getElementById('stoprec-btn').style.display   = 'none';
+
+      if (recordedFrames.length < 10) {
+        document.getElementById('ai-result').textContent = '錄影太短！請至少錄 1 秒以上。';
+        document.getElementById('record-btn').style.display = 'inline-block';
+        return;
+      }
+
+      const angle = ANGLES[currentStep];
+      angleData[angle.key] = [...recordedFrames];
+
+      const card = document.getElementById(angle.cardId);
+      card.classList.add('done');
+      card.querySelector('.angle-card-status').textContent = '✅ 完成';
+      card.querySelector('.angle-card-status').style.color = '#6db87a';
+      card.querySelector('.angle-card-frames').textContent = `${recordedFrames.length} 幀`;
+
+      if (currentStep < ANGLES.length - 1) {
+        document.getElementById('next-btn').style.display   = 'inline-block';
+        document.getElementById('record-btn').style.display = 'inline-block';
+        document.getElementById('ai-result').textContent =
+          `✅ ${angle.name}角度完成！點「下一角度」繼續或「重新錄影」重錄。`;
+      } else {
+        document.getElementById('analyze-btn').style.display = 'inline-block';
+        document.getElementById('record-btn').style.display  = 'inline-block';
+        document.getElementById('ai-result').textContent =
+          `🎉 三個角度都完成！點「🤖 AI 分析」獲得完整分析。`;
+        const c4 = document.getElementById('step4-circle');
+        c4.className = 'step-circle active';
+        document.getElementById('step4-label').className = 'step-label active';
+        document.getElementById('line3').className = 'step-line done';
+      }
+    }
+
+    function nextAngle() {
+      currentStep++;
+      updateStepUI();
+      document.getElementById('next-btn').style.display    = 'none';
+      document.getElementById('record-btn').style.display  = 'inline-block';
+      document.getElementById('progress-bar').style.width  = '0%';
+      const angle = ANGLES[currentStep];
+      document.getElementById('ai-result').textContent =
+        `現在請拍攝【${angle.name}】角度。\n${angle.desc}`;
+    }
+
+    function restartAll() {
+      currentStep = 0;
+      angleData.front = angleData.side = angleData.back = null;
+      isRecording = false; recordedFrames = []; frameCount = 0;
+      document.getElementById('record-btn').style.display   = 'inline-block';
+      document.getElementById('record-btn').disabled        = false;
+      document.getElementById('stoprec-btn').style.display  = 'none';
+      document.getElementById('next-btn').style.display     = 'none';
+      document.getElementById('analyze-btn').style.display  = 'none';
+      document.getElementById('progress-bar').style.width   = '0%';
+      document.getElementById('loading').style.display      = 'none';
+      ANGLES.forEach(a => {
+        const card = document.getElementById(a.cardId);
+        card.classList.remove('done');
+        card.querySelector('.angle-card-status').textContent = '等待錄影';
+        card.querySelector('.angle-card-status').style.color = '';
+        card.querySelector('.angle-card-frames').textContent = '';
+      });
+      updateStepUI();
+      document.getElementById('ai-result').textContent = '已重置！請重新從正面角度開始錄影。';
+    }
+
+    // ===== 上傳影片模式 =====
+    const uploadedFiles = { front: null, side: null, back: null };
+
+    function handleUpload(input, key) {
+      const file = input.files[0];
+      if (!file) return;
+      uploadedFiles[key] = file;
+
+      const prevVideo = document.getElementById(`prev-${key}`);
+      prevVideo.src = URL.createObjectURL(file);
+      prevVideo.play();
+
+      const box = document.getElementById(`box-${key}`);
+      box.classList.add('uploaded');
+
+      // 如果三個都上傳了就啟用分析按鈕
+      if (uploadedFiles.front && uploadedFiles.side && uploadedFiles.back) {
+        document.getElementById('upload-analyze-btn').disabled = false;
+        document.getElementById('ai-result2').textContent =
+          '✅ 三個角度影片都已上傳！點「分析三角度影片」開始分析。';
+      }
+    }
+
+    // 用 MediaPipe 逐幀分析影片
+    async function analyzeVideoFile(file, label, progressCallback) {
+      return new Promise(async (resolve) => {
+        const pose = new Pose({
+          locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`
+        });
+        pose.setOptions({
+          modelComplexity: 1, smoothLandmarks: true,
+          minDetectionConfidence: 0.5, minTrackingConfidence: 0.5
+        });
+
+        const frames = [];
+        pose.onResults(results => {
+          if (results.poseLandmarks) {
+            frames.push({ frame: frames.length, ...extractAngles(results.poseLandmarks) });
+          }
+        });
+
+        const videoEl = document.createElement('video');
+        videoEl.src = URL.createObjectURL(file);
+        videoEl.muted = true;
+        await new Promise(r => { videoEl.onloadedmetadata = r; });
+
+        const offCanvas = document.createElement('canvas');
+        const offCtx = offCanvas.getContext('2d');
+        const duration = videoEl.duration;
+        const interval = 0.1; // 每 0.1 秒擷取一幀
+
+        videoEl.currentTime = 0;
+        await new Promise(r => { videoEl.onseeked = r; });
+
+        let t = 0;
+        while (t < duration) {
+          videoEl.currentTime = t;
+          await new Promise(r => { videoEl.onseeked = r; });
+          offCanvas.width  = videoEl.videoWidth;
+          offCanvas.height = videoEl.videoHeight;
+          offCtx.drawImage(videoEl, 0, 0);
+          await pose.send({ image: offCanvas });
+          t += interval;
+          if (progressCallback) progressCallback(t / duration);
+        }
+
+        resolve(frames);
+      });
+    }
+
+    async function analyzeUploadedVideos() {
+      document.getElementById('upload-analyze-btn').disabled = true;
+      document.getElementById('loading2').style.display = 'block';
+      document.getElementById('ai-result2').textContent = '';
+      document.getElementById('upload-progress').style.display = 'block';
+
+      const uploadAngleData = { front: null, side: null, back: null };
+      const labels = ['正面', '側面', '背面'];
+      const keys   = ['front', 'side', 'back'];
+
+      for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        document.getElementById('upload-progress-text').textContent =
+          `分析${labels[i]}影片中... (${i+1}/3)`;
+
+        uploadAngleData[key] = await analyzeVideoFile(
+          uploadedFiles[key],
+          labels[i],
+          (p) => {
+            const overall = ((i + p) / 3) * 100;
+            document.getElementById('progress-bar2').style.width = overall + '%';
+            document.getElementById('upload-progress-text').textContent =
+              `分析${labels[i]}影片中... ${Math.round(p*100)}%`;
+          }
+        );
+      }
+
+      document.getElementById('upload-progress-text').textContent =
+        `三個角度分析完成！傳送給 AI 中...`;
+      document.getElementById('progress-bar2').style.width = '100%';
+
+      await runAnalysis(uploadAngleData, 'ai-result2', 'loading2');
+
+      document.getElementById('upload-progress').style.display = 'none';
+      document.getElementById('upload-analyze-btn').disabled = false;
+    }
+
+    // 啟動
+    window.onload = () => {
+      updateStepUI();
+      initCamera();
+      checkAuth();
+    };
+  </script>
+
+</body>
+</html>
