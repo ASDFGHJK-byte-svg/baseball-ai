@@ -16,6 +16,197 @@
 
 <!-- Tailwind 設定 -->
 <script>
+  // 顯示歷史紀錄頁面
+async function showHistoryPage() {
+  if (!currentUser) {
+    document.getElementById('ai-result').textContent = '請先登入才能查看歷史紀錄！';
+    return;
+  }
+
+  document.getElementById('ai-result').textContent = '載入歷史紀錄中...';
+
+  const sessions = await loadHistory();
+
+  if (sessions.length === 0) {
+    document.getElementById('ai-result').textContent = '還沒有任何分析紀錄，快去分析你的投球姿勢吧！';
+    return;
+  }
+
+  // 建立歷史紀錄 HTML
+  let html = `
+    <div style="margin-bottom: 16px;">
+      <h3 style="color: #c3f400; font-size: 14px; margin-bottom: 12px;">
+        📋 歷史分析紀錄（共 ${sessions.length} 筆）
+      </h3>
+      <p style="font-size: 12px; color: #a08060; margin-bottom: 12px;">
+        勾選兩筆紀錄進行對比
+      </p>
+    </div>
+    <div id="history-list" style="display: flex; flex-direction: column; gap: 8px;">
+  `;
+
+  sessions.forEach((session, index) => {
+    const date = new Date(session.created_at).toLocaleDateString('zh-TW');
+    const time = new Date(session.created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+    const levelMap = { beginner: '初學者', youth: '青少年', amateur: '業餘', professional: '職業' };
+    const styleMap = { overhead: '正上方', threequarter: '四分之三', sidearm: '側投', submarine: '下投' };
+
+    html += `
+      <div style="background: rgba(45,55,72,0.5); border: 1px solid #444933; border-radius: 8px; padding: 12px; cursor: pointer; transition: border-color 0.2s;"
+        id="session-${session.id}"
+        onclick="toggleSessionSelect('${session.id}', ${index})">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="check-${session.id}"
+              style="accent-color: #c3f400; width: 16px; height: 16px;">
+            <div>
+              <div style="font-size: 13px; color: #f0e6d3; font-weight: bold;">
+                ${date} ${time}
+              </div>
+              <div style="font-size: 11px; color: #a08060; margin-top: 2px;">
+                ${levelMap[session.level] || session.level} ・ 
+                ${styleMap[session.style] || session.style} ・ 
+                ${session.throws === 'R' ? '右投' : '左投'}
+              </div>
+            </div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 20px; font-weight: bold; color: #c3f400;">
+              ${session.score}
+            </div>
+            <div style="font-size: 10px; color: #a08060;">分</div>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `
+    </div>
+    <button onclick="compareSelected()"
+      style="margin-top: 16px; width: 100%; padding: 12px; background: #533ab7; color: #f0e6d3;
+      border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px;">
+      🔄 對比選取的兩筆紀錄
+    </button>
+  `;
+
+  document.getElementById('ai-result').innerHTML = html;
+
+  // 儲存 sessions 資料
+  window.historySessions = sessions;
+}
+
+// 切換選取狀態
+let selectedSessions = [];
+
+function toggleSessionSelect(id, index) {
+  const checkbox = document.getElementById(`check-${id}`);
+  const card = document.getElementById(`session-${id}`);
+
+  if (checkbox.checked) {
+    checkbox.checked = false;
+    card.style.borderColor = '#444933';
+    selectedSessions = selectedSessions.filter(s => s !== id);
+  } else {
+    if (selectedSessions.length >= 2) {
+      alert('最多只能選擇兩筆紀錄！');
+      return;
+    }
+    checkbox.checked = true;
+    card.style.borderColor = '#c3f400';
+    selectedSessions.push(id);
+  }
+}
+
+// 對比兩筆紀錄
+async function compareSelected() {
+  if (selectedSessions.length !== 2) {
+    alert('請選擇兩筆紀錄進行對比！');
+    return;
+  }
+
+  const session1 = window.historySessions.find(s => s.id === selectedSessions[0]);
+  const session2 = window.historySessions.find(s => s.id === selectedSessions[1]);
+
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('ai-result').innerHTML = '';
+
+  // 計算角度差異
+  const diff = {
+    score: session2.score - session1.score,
+  };
+
+  const prompt = `你是一位專業棒球投球姿勢分析教練，請用繁體中文、口語化方式回答。
+
+以下是同一位投手兩次投球分析的數據對比：
+
+【第一次分析】時間：${new Date(session1.created_at).toLocaleDateString('zh-TW')}
+評分：${session1.score} 分
+等級：${session1.level} ／ 風格：${session1.style} ／ 手別：${session1.throws === 'R' ? '右投' : '左投'}
+
+【第二次分析】時間：${new Date(session2.created_at).toLocaleDateString('zh-TW')}
+評分：${session2.score} 分
+等級：${session2.level} ／ 風格：${session2.style} ／ 手別：${session2.throws === 'R' ? '右投' : '左投'}
+
+評分變化：${diff.score > 0 ? '+' : ''}${diff.score} 分
+
+請分析：
+1. 📈 進步幅度評估（評分變化說明）
+2. ✅ 有改善的地方
+3. ⚠️ 還需要繼續努力的地方
+4. 💪 接下來的訓練建議`;
+
+  try {
+    const response = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+
+    const data = await response.json();
+    if (data.error) {
+      document.getElementById('ai-result').textContent = '❌ 分析失敗：' + data.error.message;
+      return;
+    }
+
+    const result = data.choices[0].message.content;
+
+    document.getElementById('ai-result').innerHTML = `
+      <div style="margin-bottom: 16px; display: flex; gap: 12px;">
+        <div style="flex: 1; background: rgba(45,55,72,0.5); border: 1px solid #444933; border-radius: 8px; padding: 12px; text-align: center;">
+          <div style="font-size: 11px; color: #a08060; margin-bottom: 4px;">第一次</div>
+          <div style="font-size: 11px; color: #a08060;">${new Date(session1.created_at).toLocaleDateString('zh-TW')}</div>
+          <div style="font-size: 28px; font-weight: bold; color: #c3f400; margin-top: 4px;">${session1.score}</div>
+          <div style="font-size: 10px; color: #a08060;">分</div>
+        </div>
+        <div style="display: flex; align-items: center; font-size: 20px; color: ${diff.score >= 0 ? '#c3f400' : '#ff4444'};">
+          ${diff.score >= 0 ? '📈' : '📉'}
+          <span style="font-size: 14px; font-weight: bold; margin-left: 4px;">
+            ${diff.score > 0 ? '+' : ''}${diff.score}
+          </span>
+        </div>
+        <div style="flex: 1; background: rgba(45,55,72,0.5); border: 1px solid #c3f400; border-radius: 8px; padding: 12px; text-align: center;">
+          <div style="font-size: 11px; color: #a08060; margin-bottom: 4px;">第二次</div>
+          <div style="font-size: 11px; color: #a08060;">${new Date(session2.created_at).toLocaleDateString('zh-TW')}</div>
+          <div style="font-size: 28px; font-weight: bold; color: #c3f400; margin-top: 4px;">${session2.score}</div>
+          <div style="font-size: 10px; color: #a08060;">分</div>
+        </div>
+      </div>
+      <div style="font-size: 14px; line-height: 1.9; color: #d4c4a8; white-space: pre-wrap;">${result}</div>
+      <button onclick="showHistoryPage()"
+        style="margin-top: 12px; width: 100%; padding: 10px; background: #2a1f14; color: #a08060;
+        border: 1px solid #444933; border-radius: 8px; cursor: pointer; font-size: 13px;">
+        ← 返回歷史紀錄
+      </button>
+    `;
+
+  } catch (err) {
+    document.getElementById('ai-result').textContent = '分析失敗：' + err.message;
+  }
+
+  document.getElementById('loading').style.display = 'none';
+  selectedSessions = [];
+}
   // 儲存分析紀錄到 Supabase
 async function saveSession(data, scoreResult, aiResult) {
   try {
@@ -94,8 +285,9 @@ function switchToPage(page) {
     items[pageMap[page]].classList.remove('text-on-surface-variant');
   }
 
-  // 只有真正切換到其他頁面才顯示開發中
-  if (page !== 'analyze') {
+if (page === 'history') {
+    showHistoryPage();
+  } else if (page !== 'analyze') {
     const aiResult = document.getElementById('ai-result');
     if (aiResult && !aiResult.textContent.includes('⭐')) {
       aiResult.textContent = '🚧 此功能正在開發中，敬請期待！';
