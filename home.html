@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VeloMetric AI - AI 棒球投球姿勢分析系統</title>
+  <meta name="description" content="使用 AI 和 MediaPipe 技術分析你的棒球投球姿勢，獲得專業教練建議，提升投球水準。">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-950 text-gray-200 min-h-screen">
+
+  <!-- 導覽列 -->
+  <nav class="fixed top-0 left-0 right-0 h-16 bg-gray-950/90 backdrop-blur-xl border-b border-gray-800 flex justify-between items-center px-6 z-50">
+    <h1 class="text-xl font-bold text-[#c3f400]">⚾ VeloMetric AI</h1>
+    <div class="flex items-center gap-4">
+      <a href="#features" class="text-sm text-gray-400 hover:text-white transition-colors">功能</a>
+      <a href="#how-to-use" class="text-sm text-gray-400 hover:text-white transition-colors">使用說明</a>
+      <a href="#faq" class="text-sm text-gray-400 hover:text-white transition-colors">常見問題</a>
+      <a href="/index.html"
+        class="bg-[#c3f400] text-[#283500] font-bold text-sm px-4 py-2 rounded-full hover:bg-[#abd600] transition-colors">
+        開始分析
+      </a>
+    </div>
+  </nav>
+
+  <!-- 英雄區塊 -->
+  <section class="pt-32 pb-20 px-6 text-center">
+    <div class="max-w-4xl mx-auto">
+      <div class="inline-block bg-[#c3f400]/10 border border-[#c3f400]/30 text-[#c3f400] text-xs font-bold px-4 py-2 rounded-full mb-6 tracking-widest uppercase">
+        AI 驅動的投球分析
+      </div>
+      <h1 class="text-5xl font-black text-white mb-6 leading-tight">
+        讓 AI 成為你的<br>
+        <span class="text-[#c3f400]">專屬投球教練</span>
+      </h1>
+      <p class="text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
+        使用 MediaPipe 即時偵測你的投球姿勢，結合 AI 分析技術，提供職業級的投球建議。適合所有年齡層的投手使用。
+      </p>
+      <div class="flex gap-4 justify-center flex-wrap">
+        <a href="/index.html"
+          class="bg-[#c3f400] text-[#283500] font-bold text-lg px-8 py-4 rounded-full hover:bg-[#abd600] transition-all hover:scale-105">
+          免費開始分析 →
+        </a>
+        <a href="#how-to-use"
+          class="border border-gray-600 text-gray-300 font-bold text-lg px-8 py-4 rounded-full hover:border-[#c3f400] hover:text-[#c3f400] transition-all">
+          了解更多
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 數據統計 -->
+  <section class="py-12 border-y border-gray-800">
+    <div class="max-w-4xl mx-auto px-6 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+      <div>
+        <div class="text-3xl font-black text-[#c3f400]">33</div>
+        <div class="text-sm text-gray-400 mt-1">關節偵測點</div>
+      </div>
+      <div>
+        <div class="text-3xl font-black text-[#c3f400]">3</div>
+        <div class="text-sm text-gray-400 mt-1">拍攝角度</div>
+      </div>
+      <div>
+        <div class="text-3xl font-black text-[#c3f400]">4</div>
+        <div class="text-sm text-gray-400 mt-1">投球風格分析</div>
+      </div>
+      <div>
+        <div class="text-3xl font-black text-[#c3f400]">免費</div>
+        <div class="text-sm text-gray-400 mt-1">開始使用</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 功能介紹 -->
+  <section id="features" class="py-20 px-6">
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl font-black text-white mb-4">強大的分析功能</h2>
+        <p class="text-gray-400">結合最新 AI 技術，提供全面的投球姿勢分析</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 hover:border-[#c3f400]/50 transition-colors">
+          <div class="text-3xl mb-4">🎯</div>
+          <h3 class="text-lg font-bold text-white mb-2">即時骨架偵測</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">使用 Google MediaPipe 技術即時偵測 33 個身體關節點，精確計算投球動作的每個角度。</p>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 hover:border-[#c3f400]/50 transition-colors">
+          <div class="text-3xl mb-4">📐</div>
+          <h3 class="text-lg font-bold text-white mb-2">三角度分析</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">從正面、側面、背面三個角度錄製投球動作，獲得最完整的姿勢分析報告。</p>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 hover:border-[#c3f400]/50 transition-colors">
+          <div class="text-3xl mb-4">🤖</div>
+          <h3 class="text-lg font-bold text-white mb-2">AI 教練建議</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">結合大型語言模型，提供口語化的投球建議，就像有專業教練在你身旁指導。</p>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 hover:border-[#c3f400]/50 transition-colors">
+          <div class="text-3xl mb-4">⭐</div>
+          <h3 class="text-lg font-bold text-white mb-2">智能評分系統</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">根據投球等級（初學者/青少年/業餘/職業）和投球風格（正上方/四分之三/側投/下投）客製化評分標準。</p>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 hover:border-[#c3f400]/50 transition-colors">
+          <div class="text-3xl mb-4">📈</div>
+          <h3 class="text-lg font-bold text-white mb-2">歷史紀錄對比</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">儲存每次分析結果，追蹤投球姿勢的進步幅度，清楚看到自己的成長。</p>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 hover:border-[#c3f400]/50 transition-colors">
+          <div class="text-3xl mb-4">🎬</div>
+          <h3 class="text-lg font-bold text-white mb-2">影片上傳分析</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">支援上傳已拍攝的投球影片進行分析，不需要即時對著攝影機投球。</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- 使用說明 -->
+  <section id="how-to-use" class="py-20 px-6 bg-gray-900/50">
+    <div class="max-w-4xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl font-black text-white mb-4">如何使用</h2>
+        <p class="text-gray-400">只需要幾個簡單步驟，就能獲得專業的投球分析</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+        <div class="text-center">
+          <div class="w-12 h-12 rounded-full bg-[#c3f400] text-[#283500] font-black text-xl flex items-center justify-center mx-auto mb-4">1</div>
+          <h3 class="font-bold text-white mb-2">登入帳號</h3>
+          <p class="text-gray-400 text-sm">使用 Google 帳號免費登入，每天可分析 10 次。</p>
+        </div>
+
+        <div class="text-center">
+          <div class="w-12 h-12 rounded-full bg-[#c3f400] text-[#283500] font-black text-xl flex items-center justify-center mx-auto mb-4">2</div>
+          <h3 class="font-bold text-white mb-2">選擇設定</h3>
+          <p class="text-gray-400 text-sm">選擇投球手別、等級和風格，讓 AI 用最適合的標準分析你。</p>
+        </div>
+
+        <div class="text-center">
+          <div class="w-12 h-12 rounded-full bg-[#c3f400] text-[#283500] font-black text-xl flex items-center justify-center mx-auto mb-4">3</div>
+          <h3 class="font-bold text-white mb-2">錄製投球</h3>
+          <p class="text-gray-400 text-sm">從正面、側面、背面三個角度錄製你的投球動作。</p>
+        </div>
+
+        <div class="text-center">
+          <div class="w-12 h-12 rounded-full bg-[#c3f400] text-[#283500] font-black text-xl flex items-center justify-center mx-auto mb-4">4</div>
+          <h3 class="font-bold text-white mb-2">獲得分析</h3>
+          <p class="text-gray-400 text-sm">AI 分析你的投球姿勢，給出評分和具體改善建議。</p>
+        </div>
+
+      </div>
+      <div class="text-center mt-12">
+        <a href="/index.html"
+          class="bg-[#c3f400] text-[#283500] font-bold text-lg px-8 py-4 rounded-full hover:bg-[#abd600] transition-all hover:scale-105 inline-block">
+          立即開始分析 →
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 適合對象 -->
+  <section class="py-20 px-6">
+    <div class="max-w-4xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl font-black text-white mb-4">適合所有投手</h2>
+        <p class="text-gray-400">不論你是初學者還是職業球員，都能獲得有價值的分析</p>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+          <div class="text-2xl mb-2">🧒</div>
+          <div class="font-bold text-white text-sm">初學者</div>
+          <div class="text-gray-400 text-xs mt-1">國小學生</div>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+          <div class="text-2xl mb-2">🧑</div>
+          <div class="font-bold text-white text-sm">青少年</div>
+          <div class="text-gray-400 text-xs mt-1">國中高中生</div>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+          <div class="text-2xl mb-2">🙋</div>
+          <div class="font-bold text-white text-sm">業餘球員</div>
+          <div class="text-gray-400 text-xs mt-1">社會人士</div>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+          <div class="text-2xl mb-2">⭐</div>
+          <div class="font-bold text-white text-sm">職業球員</div>
+          <div class="text-gray-400 text-xs mt-1">專業投手</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 常見問題 FAQ -->
+  <section id="faq" class="py-20 px-6 bg-gray-900/50">
+    <div class="max-w-3xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl font-black text-white mb-4">常見問題</h2>
+      </div>
+      <div class="space-y-4">
+
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+          <h3 class="font-bold text-white mb-2">這個服務需要付費嗎？</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">完全免費！使用 Google 帳號登入後，每天可以免費分析 10 次投球姿勢。</p>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+          <h3 class="font-bold text-white mb-2">需要什麼設備？</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">只需要一台有攝影機的電腦或筆電，以及 Chrome 或 Edge 瀏覽器。不需要下載任何軟體。</p>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+          <h3 class="font-bold text-white mb-2">我的影片會被儲存嗎？</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">不會！攝影機畫面只在你的裝置本地端處理，不會上傳到伺服器。我們只儲存 AI 分析後的關節角度數據和評分結果。</p>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+          <h3 class="font-bold text-white mb-2">分析結果準確嗎？</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">分析結果基於 Google MediaPipe 的姿勢偵測技術和 AI 分析，具有一定的參考價值。建議搭配專業教練的實際指導使用，效果最佳。</p>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+          <h3 class="font-bold text-white mb-2">支援哪些投球風格？</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">支援四種投球風格：正上方（Overhead）、四分之三（Three-quarter）、側投（Sidearm）、下投（Submarine）。每種風格都有對應的評分標準。</p>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+          <h3 class="font-bold text-white mb-2">可以上傳已拍好的影片嗎？</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">可以！除了即時攝影機分析，也支援上傳 MP4、MOV、AVI 格式的影片進行分析。</p>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-xl p-6">
+          <h3 class="font-bold text-white mb-2">如何取得最準確的分析結果？</h3>
+          <p class="text-gray-400 text-sm leading-relaxed">建議在光線充足的環境下拍攝，確保全身都在畫面內，背景盡量簡單。從正面、側面、背面三個角度各錄製一次，可以獲得最完整的分析報告。</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="py-20 px-6 text-center">
+    <div class="max-w-2xl mx-auto">
+      <h2 class="text-3xl font-black text-white mb-4">準備好提升你的投球了嗎？</h2>
+      <p class="text-gray-400 mb-8">立即免費使用 VeloMetric AI，讓 AI 幫你找出投球姿勢的問題！</p>
+      <a href="/index.html"
+        class="bg-[#c3f400] text-[#283500] font-bold text-xl px-10 py-5 rounded-full hover:bg-[#abd600] transition-all hover:scale-105 inline-block">
+        免費開始分析 ⚾
+      </a>
+    </div>
+  </section>
+
+  <!-- 頁尾 -->
+  <footer class="border-t border-gray-800 py-8 px-6 text-center text-gray-500 text-sm">
+    <p class="mb-2">© 2025 VeloMetric AI. All rights reserved.</p>
+    <div class="flex justify-center gap-6">
+      <a href="/privacy.html" class="hover:text-[#c3f400] transition-colors">隱私權政策</a>
+      <a href="/index.html" class="hover:text-[#c3f400] transition-colors">開始分析</a>
+      <a href="mailto:你的Gmail@gmail.com" class="hover:text-[#c3f400] transition-colors">聯絡我們</a>
+    </div>
+  </footer>
+
+</body>
+</html>
