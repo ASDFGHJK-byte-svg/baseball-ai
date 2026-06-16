@@ -279,19 +279,21 @@ function toggleSidebar() {
     }
   });
 
-  // 根據頁面執行對應動作
   if (page === 'analyze') {
-    // 不做任何事，保留原本分析功能
-    return;
+    return; // 完全不做任何事
   } else if (page === 'history') {
     showHistoryPage();
   } else {
-    // 其他未開發頁面
-    const aiResult = document.getElementById('ai-result');
-    if (aiResult) {
-      aiResult.textContent = '🚧 此功能正在開發中，敬請期待！';
-    }
-    document.getElementById('loading').style.display = 'none';
+    // 同時更新兩個 ai-result
+    const aiResult1 = document.getElementById('ai-result');
+    const aiResult2 = document.getElementById('ai-result2');
+    const loading1 = document.getElementById('loading');
+    const loading2 = document.getElementById('loading2');
+
+    if (aiResult1) aiResult1.textContent = '🚧 此功能正在開發中，敬請期待！';
+    if (aiResult2) aiResult2.textContent = '🚧 此功能正在開發中，敬請期待！';
+    if (loading1) loading1.style.display = 'none';
+    if (loading2) loading2.style.display = 'none';
   }
 }
   tailwind.config = {
@@ -857,7 +859,7 @@ button:disabled {
 
   <!-- 導覽選單 -->
   <nav class="flex flex-col gap-1 flex-1">
-    <div onclick="location.reload()"
+   <div onclick="location.href='/app'"
       class="nav-item active flex items-center gap-3 p-3 bg-[#c3f400]/10 border-r-4 border-[#c3f400] text-[#c3f400] font-bold cursor-pointer hover:translate-x-1 transition-transform duration-300">
       <span class="material-symbols-outlined">analytics</span>
       <span class="text-sm">投球分析</span>
