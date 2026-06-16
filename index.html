@@ -266,36 +266,6 @@ function toggleSidebar() {
     header.classList.add('expanded');
   }
 }
- function switchToPage(page) {
-  // 更新導覽列樣式
-  document.querySelectorAll('.nav-item').forEach((item, i) => {
-    const pageOrder = ['analyze', 'compare', 'trends', 'drills', 'history'];
-    if (pageOrder[i] === page) {
-      item.classList.add('bg-[#c3f400]/10', 'border-r-4', 'border-[#c3f400]', 'text-[#c3f400]', 'font-bold');
-      item.classList.remove('text-on-surface-variant');
-    } else {
-      item.classList.remove('bg-[#c3f400]/10', 'border-r-4', 'border-[#c3f400]', 'text-[#c3f400]', 'font-bold');
-      item.classList.add('text-on-surface-variant');
-    }
-  });
-
-  if (page === 'analyze') {
-    return; // 完全不做任何事
-  } else if (page === 'history') {
-    showHistoryPage();
-  } else {
-    // 同時更新兩個 ai-result
-    const aiResult1 = document.getElementById('ai-result');
-    const aiResult2 = document.getElementById('ai-result2');
-    const loading1 = document.getElementById('loading');
-    const loading2 = document.getElementById('loading2');
-
-    if (aiResult1) aiResult1.textContent = '🚧 此功能正在開發中，敬請期待！';
-    if (aiResult2) aiResult2.textContent = '🚧 此功能正在開發中，敬請期待！';
-    if (loading1) loading1.style.display = 'none';
-    if (loading2) loading2.style.display = 'none';
-  }
-}
   tailwind.config = {
     darkMode: "class",
     theme: {
@@ -2040,7 +2010,466 @@ ${summarize(cleanData.back, '背面')}
       document.getElementById('upload-progress').style.display = 'none';
       document.getElementById('upload-analyze-btn').disabled = false;
     }
+// ===== 頁面切換 =====
+function switchToPage(page) {
+  document.querySelectorAll('.nav-item').forEach((item, i) => {
+    const pageOrder = ['analyze', 'compare', 'trends', 'drills', 'history'];
+    if (pageOrder[i] === page) {
+      item.classList.add('bg-[#c3f400]/10', 'border-r-4', 'border-[#c3f400]', 'text-[#c3f400]', 'font-bold');
+      item.classList.remove('text-on-surface-variant');
+    } else {
+      item.classList.remove('bg-[#c3f400]/10', 'border-r-4', 'border-[#c3f400]', 'text-[#c3f400]', 'font-bold');
+      item.classList.add('text-on-surface-variant');
+    }
+  });
 
+  if (page === 'analyze') {
+    return;
+  } else if (page === 'compare') {
+    showComparePage();
+  } else if (page === 'trends') {
+    showTrendsPage();
+  } else if (page === 'history') {
+    showHistoryPage();
+  } else {
+    document.getElementById('ai-result').innerHTML = `
+      <div style="text-align:center; padding:20px;">
+        <div style="font-size:40px; margin-bottom:12px;">🚧</div>
+        <div style="color:#f0e6d3; font-size:15px; margin-bottom:8px;">此功能即將推出</div>
+        <div style="color:#a08060; font-size:13px;">敬請期待！</div>
+      </div>
+    `;
+    document.getElementById('loading').style.display = 'none';
+  }
+}
+
+// ===== 歷史紀錄 =====
+async function showHistoryPage() {
+  if (!currentUser) {
+    document.getElementById('ai-result').textContent = '請先登入才能查看歷史紀錄！';
+    return;
+  }
+
+  document.getElementById('ai-result').innerHTML = '載入歷史紀錄中...';
+
+  const sessions = await loadHistory();
+
+  if (sessions.length === 0) {
+    document.getElementById('ai-result').innerHTML = `
+      <div style="text-align:center; padding:20px;">
+        <div style="font-size:40px; margin-bottom:12px;">📋</div>
+        <div style="color:#f0e6d3; font-size:15px; margin-bottom:8px;">還沒有任何分析紀錄</div>
+        <div style="color:#a08060; font-size:13px;">快去分析你的投球姿勢吧！</div>
+      </div>
+    `;
+    return;
+  }
+
+  const levelMap = { beginner: '初學者', youth: '青少年', amateur: '業餘', professional: '職業' };
+  const styleMap = { overhead: '正上方', threequarter: '四分之三', sidearm: '側投', submarine: '下投' };
+
+  let html = `
+    <div style="margin-bottom:16px;">
+      <h3 style="color:#c3f400; font-size:14px; margin-bottom:8px;">📋 歷史分析紀錄（共 ${sessions.length} 筆）</h3>
+      <p style="font-size:12px; color:#a08060; margin-bottom:12px;">勾選兩筆紀錄進行對比</p>
+    </div>
+    <div id="history-list" style="display:flex; flex-direction:column; gap:8px;">
+  `;
+
+  sessions.forEach((session, index) => {
+    const date = new Date(session.created_at).toLocaleDateString('zh-TW');
+    const time = new Date(session.created_at).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+
+    html += `
+      <div style="background:rgba(45,55,72,0.5); border:1px solid #444933; border-radius:8px; padding:12px; cursor:pointer; transition:border-color 0.2s;"
+        id="session-${session.id}"
+        onclick="toggleSessionSelect('${session.id}', ${index})">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="check-${session.id}"
+              style="accent-color:#c3f400; width:16px; height:16px;">
+            <div>
+              <div style="font-size:13px; color:#f0e6d3; font-weight:bold;">${date} ${time}</div>
+              <div style="font-size:11px; color:#a08060; margin-top:2px;">
+                ${levelMap[session.level] || session.level} ・
+                ${styleMap[session.style] || session.style} ・
+                ${session.throws === 'R' ? '右投' : '左投'}
+              </div>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:20px; font-weight:bold; color:#c3f400;">${session.score}</div>
+            <div style="font-size:10px; color:#a08060;">分</div>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `
+    </div>
+    <button onclick="compareSelected()"
+      style="margin-top:16px; width:100%; padding:12px; background:#533ab7; color:#f0e6d3;
+      border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:14px;">
+      🔄 對比選取的兩筆紀錄
+    </button>
+  `;
+
+  document.getElementById('ai-result').innerHTML = html;
+  window.historySessions = sessions;
+}
+
+// 切換選取狀態
+let selectedSessions = [];
+
+function toggleSessionSelect(id, index) {
+  const checkbox = document.getElementById(`check-${id}`);
+  const card = document.getElementById(`session-${id}`);
+
+  if (checkbox.checked) {
+    checkbox.checked = false;
+    card.style.borderColor = '#444933';
+    selectedSessions = selectedSessions.filter(s => s !== id);
+  } else {
+    if (selectedSessions.length >= 2) {
+      alert('最多只能選擇兩筆紀錄！');
+      return;
+    }
+    checkbox.checked = true;
+    card.style.borderColor = '#c3f400';
+    selectedSessions.push(id);
+  }
+}
+
+// 對比兩筆紀錄
+async function compareSelected() {
+  if (selectedSessions.length !== 2) {
+    alert('請選擇兩筆紀錄進行對比！');
+    return;
+  }
+
+  const session1 = window.historySessions.find(s => s.id === selectedSessions[0]);
+  const session2 = window.historySessions.find(s => s.id === selectedSessions[1]);
+
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('ai-result').innerHTML = '';
+
+  const scoreDiff = session2.score - session1.score;
+
+  const prompt = `你是一位專業棒球投球姿勢分析教練，請用繁體中文、口語化方式回答。
+
+以下是同一位投手兩次投球分析的數據對比：
+
+【第一次】${new Date(session1.created_at).toLocaleDateString('zh-TW')}
+評分：${session1.score} 分
+等級：${session1.level} ／ 風格：${session1.style} ／ 手別：${session1.throws === 'R' ? '右投' : '左投'}
+
+【第二次】${new Date(session2.created_at).toLocaleDateString('zh-TW')}
+評分：${session2.score} 分
+等級：${session2.level} ／ 風格：${session2.style} ／ 手別：${session2.throws === 'R' ? '右投' : '左投'}
+
+評分變化：${scoreDiff > 0 ? '+' : ''}${scoreDiff} 分
+
+請分析：
+1. 📈 進步幅度評估
+2. ✅ 有明顯改善的地方
+3. ⚠️ 還需要繼續努力的地方
+4. 💪 接下來的訓練建議`;
+
+  try {
+    const response = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+
+    const data = await response.json();
+    if (data.error) {
+      document.getElementById('ai-result').textContent = '❌ 分析失敗：' + data.error.message;
+      return;
+    }
+
+    const result = data.choices[0].message.content;
+
+    document.getElementById('ai-result').innerHTML = `
+      <div style="display:flex; gap:12px; margin-bottom:16px; align-items:center;">
+        <div style="flex:1; background:rgba(45,55,72,0.5); border:1px solid #444933; border-radius:8px; padding:12px; text-align:center;">
+          <div style="font-size:11px; color:#a08060; margin-bottom:4px;">第一次</div>
+          <div style="font-size:11px; color:#a08060;">${new Date(session1.created_at).toLocaleDateString('zh-TW')}</div>
+          <div style="font-size:28px; font-weight:bold; color:#c3f400; margin-top:4px;">${session1.score}</div>
+          <div style="font-size:10px; color:#a08060;">分</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:24px;">${scoreDiff >= 0 ? '📈' : '📉'}</div>
+          <div style="font-size:14px; font-weight:bold; color:${scoreDiff >= 0 ? '#c3f400' : '#ff4444'};">
+            ${scoreDiff > 0 ? '+' : ''}${scoreDiff}
+          </div>
+        </div>
+        <div style="flex:1; background:rgba(45,55,72,0.5); border:1px solid #c3f400; border-radius:8px; padding:12px; text-align:center;">
+          <div style="font-size:11px; color:#a08060; margin-bottom:4px;">第二次</div>
+          <div style="font-size:11px; color:#a08060;">${new Date(session2.created_at).toLocaleDateString('zh-TW')}</div>
+          <div style="font-size:28px; font-weight:bold; color:#c3f400; margin-top:4px;">${session2.score}</div>
+          <div style="font-size:10px; color:#a08060;">分</div>
+        </div>
+      </div>
+      <div style="font-size:14px; line-height:1.9; color:#d4c4a8; white-space:pre-wrap;">${result}</div>
+      <button onclick="showHistoryPage()"
+        style="margin-top:12px; width:100%; padding:10px; background:#2a1f14; color:#a08060;
+        border:1px solid #444933; border-radius:8px; cursor:pointer; font-size:13px;">
+        ← 返回歷史紀錄
+      </button>
+    `;
+
+  } catch (err) {
+    document.getElementById('ai-result').textContent = '分析失敗：' + err.message;
+  }
+
+  document.getElementById('loading').style.display = 'none';
+  selectedSessions = [];
+}
+
+// ===== 比較分析 =====
+async function showComparePage() {
+  if (!currentUser) {
+    document.getElementById('ai-result').textContent = '請先登入才能使用比較分析！';
+    return;
+  }
+
+  document.getElementById('ai-result').innerHTML = '載入歷史紀錄中...';
+
+  const sessions = await loadHistory();
+
+  if (sessions.length < 2) {
+    document.getElementById('ai-result').innerHTML = `
+      <div style="text-align:center; padding:20px;">
+        <div style="font-size:40px; margin-bottom:12px;">📊</div>
+        <div style="color:#f0e6d3; font-size:15px; margin-bottom:8px;">需要至少兩筆分析紀錄才能比較</div>
+        <div style="color:#a08060; font-size:13px;">目前有 ${sessions.length} 筆，繼續分析投球姿勢吧！</div>
+      </div>
+    `;
+    return;
+  }
+
+  const levelMap = { beginner: '初學者', youth: '青少年', amateur: '業餘', professional: '職業' };
+
+  let html = `
+    <div style="margin-bottom:16px;">
+      <h3 style="color:#c3f400; font-size:14px; margin-bottom:8px;">📊 比較分析</h3>
+      <p style="font-size:12px; color:#a08060; margin-bottom:12px;">選擇兩筆紀錄進行比較</p>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;">
+      <div>
+        <p style="font-size:12px; color:#c3f400; margin-bottom:8px;">第一筆：</p>
+        <select id="compare-select-1"
+          style="width:100%; padding:8px; background:#2a1f14; color:#f0e6d3; border:1px solid #4a7c59; border-radius:8px; font-size:12px;">
+          <option value="">請選擇...</option>
+          ${sessions.map(s => `
+            <option value="${s.id}">
+              ${new Date(s.created_at).toLocaleDateString('zh-TW')} - ${s.score}分 - ${levelMap[s.level] || s.level}
+            </option>
+          `).join('')}
+        </select>
+      </div>
+      <div>
+        <p style="font-size:12px; color:#c3f400; margin-bottom:8px;">第二筆：</p>
+        <select id="compare-select-2"
+          style="width:100%; padding:8px; background:#2a1f14; color:#f0e6d3; border:1px solid #4a7c59; border-radius:8px; font-size:12px;">
+          <option value="">請選擇...</option>
+          ${sessions.map(s => `
+            <option value="${s.id}">
+              ${new Date(s.created_at).toLocaleDateString('zh-TW')} - ${s.score}分 - ${levelMap[s.level] || s.level}
+            </option>
+          `).join('')}
+        </select>
+      </div>
+    </div>
+    <button onclick="runCompare()"
+      style="width:100%; padding:12px; background:#533ab7; color:#f0e6d3; border:none; border-radius:8px; font-weight:bold; cursor:pointer; font-size:14px; margin-bottom:16px;">
+      🔄 開始比較分析
+    </button>
+    <div id="compare-result"></div>
+  `;
+
+  document.getElementById('ai-result').innerHTML = html;
+  window.compareSessions = sessions;
+}
+
+async function runCompare() {
+  const id1 = document.getElementById('compare-select-1').value;
+  const id2 = document.getElementById('compare-select-2').value;
+
+  if (!id1 || !id2) { alert('請選擇兩筆紀錄！'); return; }
+  if (id1 === id2) { alert('請選擇不同的兩筆紀錄！'); return; }
+
+  const session1 = window.compareSessions.find(s => s.id === id1);
+  const session2 = window.compareSessions.find(s => s.id === id2);
+  const scoreDiff = session2.score - session1.score;
+
+  document.getElementById('compare-result').innerHTML = '⏳ AI 分析中...';
+
+  const prompt = `你是一位專業棒球投球姿勢分析教練，請用繁體中文、口語化方式回答。
+
+【第一次】${new Date(session1.created_at).toLocaleDateString('zh-TW')}
+評分：${session1.score} 分 ／ 等級：${session1.level} ／ 風格：${session1.style}
+
+【第二次】${new Date(session2.created_at).toLocaleDateString('zh-TW')}
+評分：${session2.score} 分 ／ 等級：${session2.level} ／ 風格：${session2.style}
+
+評分變化：${scoreDiff > 0 ? '+' : ''}${scoreDiff} 分
+
+請分析：
+1. 📈 進步幅度評估
+2. ✅ 有明顯改善的地方
+3. ⚠️ 還需要努力的地方
+4. 💪 接下來的訓練建議`;
+
+  try {
+    const response = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+
+    const data = await response.json();
+    if (data.error) {
+      document.getElementById('compare-result').textContent = '❌ 錯誤：' + data.error.message;
+      return;
+    }
+
+    const result = data.choices[0].message.content;
+
+    document.getElementById('compare-result').innerHTML = `
+      <div style="display:flex; gap:12px; margin-bottom:16px; align-items:center;">
+        <div style="flex:1; background:rgba(45,55,72,0.5); border:1px solid #444933; border-radius:8px; padding:12px; text-align:center;">
+          <div style="font-size:11px; color:#a08060;">第一次</div>
+          <div style="font-size:11px; color:#a08060;">${new Date(session1.created_at).toLocaleDateString('zh-TW')}</div>
+          <div style="font-size:28px; font-weight:bold; color:#c3f400;">${session1.score}</div>
+          <div style="font-size:10px; color:#a08060;">分</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:24px;">${scoreDiff >= 0 ? '📈' : '📉'}</div>
+          <div style="font-size:14px; font-weight:bold; color:${scoreDiff >= 0 ? '#c3f400' : '#ff4444'};">
+            ${scoreDiff > 0 ? '+' : ''}${scoreDiff}
+          </div>
+        </div>
+        <div style="flex:1; background:rgba(45,55,72,0.5); border:1px solid #c3f400; border-radius:8px; padding:12px; text-align:center;">
+          <div style="font-size:11px; color:#a08060;">第二次</div>
+          <div style="font-size:11px; color:#a08060;">${new Date(session2.created_at).toLocaleDateString('zh-TW')}</div>
+          <div style="font-size:28px; font-weight:bold; color:#c3f400;">${session2.score}</div>
+          <div style="font-size:10px; color:#a08060;">分</div>
+        </div>
+      </div>
+      <div style="font-size:14px; line-height:1.9; color:#d4c4a8; white-space:pre-wrap;">${result}</div>
+    `;
+
+  } catch (err) {
+    document.getElementById('compare-result').textContent = '分析失敗：' + err.message;
+  }
+}
+
+// ===== 進步趨勢 =====
+async function showTrendsPage() {
+  if (!currentUser) {
+    document.getElementById('ai-result').textContent = '請先登入才能查看進步趨勢！';
+    return;
+  }
+
+  document.getElementById('ai-result').innerHTML = '載入趨勢數據中...';
+
+  const sessions = await loadHistory();
+
+  if (sessions.length < 3) {
+    document.getElementById('ai-result').innerHTML = `
+      <div style="text-align:center; padding:20px;">
+        <div style="font-size:40px; margin-bottom:12px;">📈</div>
+        <div style="color:#f0e6d3; font-size:15px; margin-bottom:8px;">需要至少三筆分析紀錄才能顯示趨勢</div>
+        <div style="color:#a08060; font-size:13px;">目前有 ${sessions.length} 筆，繼續分析投球姿勢吧！</div>
+      </div>
+    `;
+    return;
+  }
+
+  const sorted = [...sessions].reverse();
+  const width = 500;
+  const height = 200;
+  const padding = 40;
+
+  const points = sorted.map((s, i) => {
+    const x = padding + (i / (sorted.length - 1)) * (width - padding * 2);
+    const y = height - padding - (s.score / 100) * (height - padding * 2);
+    return { x, y, score: s.score, date: new Date(s.created_at).toLocaleDateString('zh-TW') };
+  });
+
+  const polyline = points.map(p => `${p.x},${p.y}`).join(' ');
+  const maxScore = Math.max(...sessions.map(s => s.score));
+  const avgScore = Math.round(sessions.reduce((s, r) => s + r.score, 0) / sessions.length);
+  const improvement = sorted[sorted.length - 1].score - sorted[0].score;
+
+  document.getElementById('ai-result').innerHTML = `
+    <div style="margin-bottom:16px;">
+      <h3 style="color:#c3f400; font-size:14px; margin-bottom:4px;">📈 進步趨勢</h3>
+      <p style="font-size:12px; color:#a08060;">共 ${sessions.length} 筆分析紀錄</p>
+    </div>
+
+    <div style="background:rgba(45,55,72,0.5); border:1px solid #444933; border-radius:8px; padding:16px; margin-bottom:16px; overflow-x:auto;">
+      <svg viewBox="0 0 ${width} ${height}" style="width:100%; min-width:300px;">
+        <defs>
+          <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#c3f400" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#c3f400" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        ${[0, 25, 50, 75, 100].map(v => {
+          const y = height - padding - (v / 100) * (height - padding * 2);
+          return `
+            <line x1="${padding}" y1="${y}" x2="${width - padding}" y2="${y}" stroke="#444933" stroke-width="1" stroke-dasharray="4"/>
+            <text x="${padding - 5}" y="${y + 4}" fill="#a08060" font-size="10" text-anchor="end">${v}</text>
+          `;
+        }).join('')}
+        <polygon points="${polyline} ${width - padding},${height - padding} ${padding},${height - padding}" fill="url(#grad)"/>
+        <polyline points="${polyline}" fill="none" stroke="#c3f400" stroke-width="2"/>
+        ${points.map(p => `
+          <circle cx="${p.x}" cy="${p.y}" r="4" fill="#c3f400"/>
+          <text x="${p.x}" y="${p.y - 10}" fill="#c3f400" font-size="10" text-anchor="middle">${p.score}</text>
+        `).join('')}
+        ${points.filter((p, i) => i === 0 || i === points.length - 1).map(p => `
+          <text x="${p.x}" y="${height - 5}" fill="#a08060" font-size="9" text-anchor="middle">${p.date}</text>
+        `).join('')}
+      </svg>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
+      <div style="background:rgba(45,55,72,0.5); border:1px solid #444933; border-radius:8px; padding:12px; text-align:center;">
+        <div style="font-size:10px; color:#a08060; margin-bottom:4px;">最高分</div>
+        <div style="font-size:24px; font-weight:bold; color:#c3f400;">${maxScore}</div>
+      </div>
+      <div style="background:rgba(45,55,72,0.5); border:1px solid #444933; border-radius:8px; padding:12px; text-align:center;">
+        <div style="font-size:10px; color:#a08060; margin-bottom:4px;">平均分</div>
+        <div style="font-size:24px; font-weight:bold; color:#c3f400;">${avgScore}</div>
+      </div>
+      <div style="background:rgba(45,55,72,0.5); border:1px solid #444933; border-radius:8px; padding:12px; text-align:center;">
+        <div style="font-size:10px; color:#a08060; margin-bottom:4px;">進步幅度</div>
+        <div style="font-size:24px; font-weight:bold; color:${improvement >= 0 ? '#c3f400' : '#ff4444'};">
+          ${improvement > 0 ? '+' : ''}${improvement}
+        </div>
+      </div>
+    </div>
+
+    <h3 style="color:#c3f400; font-size:13px; margin-bottom:10px;">所有分析紀錄</h3>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      ${sessions.map(s => `
+        <div style="display:flex; justify-content:space-between; align-items:center;
+          background:rgba(45,55,72,0.3); border:1px solid #444933; border-radius:8px; padding:10px 14px;">
+          <div>
+            <div style="font-size:12px; color:#f0e6d3;">${new Date(s.created_at).toLocaleDateString('zh-TW')}</div>
+            <div style="font-size:10px; color:#a08060; margin-top:2px;">${s.style} ／ ${s.throws === 'R' ? '右投' : '左投'}</div>
+          </div>
+          <div style="font-size:22px; font-weight:bold; color:#c3f400;">${s.score}<span style="font-size:11px; color:#a08060;">分</span></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
     // 啟動
    window.onload = () => {
   updateStepUI();
