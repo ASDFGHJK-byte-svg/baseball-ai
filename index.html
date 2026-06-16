@@ -2042,11 +2042,27 @@ ${summarize(cleanData.back, '背面')}
     }
 
     // 啟動
-    window.onload = () => {
-      updateStepUI();
-      initCamera();
-      checkAuth();
-    };
+   window.onload = () => {
+  updateStepUI();
+  initCamera();
+  checkAuth();
+
+  // 保護 ai-result 初始內容
+  const defaultContent = `請依照步驟從三個角度錄製投球動作：<br><br>
+    🧍 <b>正面</b>：分析肩膀高度、軀幹旋轉<br>
+    🚶 <b>側面</b>：分析手臂軌跡、釋球點<br>
+    🔙 <b>背面</b>：分析腳步、重心轉移`;
+
+  setTimeout(() => {
+    const aiResult = document.getElementById('ai-result');
+    if (aiResult && (
+      aiResult.textContent.includes('開發中') ||
+      aiResult.textContent.trim() === ''
+    )) {
+      aiResult.innerHTML = defaultContent;
+    }
+  }, 500);
+};
   </script>
 
 </body>
