@@ -266,44 +266,29 @@ function toggleSidebar() {
     header.classList.add('expanded');
   }
 }
-  // 頁面切換
-function switchToPage(page) {
-  // 如果是 analyze 什麼都不做
-  if (page === 'analyze') {
-    document.querySelectorAll('.nav-item').forEach((item, i) => {
-      if (i === 0) {
-        item.classList.add('bg-[#c3f400]/10', 'border-r-4', 'border-[#c3f400]', 'text-[#c3f400]', 'font-bold');
-        item.classList.remove('text-on-surface-variant');
-      } else {
-        item.classList.remove('bg-[#c3f400]/10', 'border-r-4', 'border-[#c3f400]', 'text-[#c3f400]', 'font-bold');
-        item.classList.add('text-on-surface-variant');
-      }
-    });
-    return;
-  }
-
+ function switchToPage(page) {
   // 更新導覽列樣式
-  document.querySelectorAll('.nav-item').forEach(item => {
-    item.classList.remove('active', 'bg-[#c3f400]/10', 'border-r-4', 'border-[#c3f400]', 'text-[#c3f400]', 'font-bold');
-    item.classList.add('text-on-surface-variant');
+  document.querySelectorAll('.nav-item').forEach((item, i) => {
+    const pageOrder = ['analyze', 'compare', 'trends', 'drills', 'history'];
+    if (pageOrder[i] === page) {
+      item.classList.add('bg-[#c3f400]/10', 'border-r-4', 'border-[#c3f400]', 'text-[#c3f400]', 'font-bold');
+      item.classList.remove('text-on-surface-variant');
+    } else {
+      item.classList.remove('bg-[#c3f400]/10', 'border-r-4', 'border-[#c3f400]', 'text-[#c3f400]', 'font-bold');
+      item.classList.add('text-on-surface-variant');
+    }
   });
 
-  // 目前選中的項目
-  const pageMap = {
-    analyze: 0, compare: 1, trends: 2, drills: 3, history: 4
-  };
-
-  const items = document.querySelectorAll('.nav-item');
-  if (items[pageMap[page]]) {
-    items[pageMap[page]].classList.add('active', 'bg-[#c3f400]/10', 'border-r-4', 'border-[#c3f400]', 'text-[#c3f400]', 'font-bold');
-    items[pageMap[page]].classList.remove('text-on-surface-variant');
-  }
-
-if (page === 'history') {
+  // 根據頁面執行對應動作
+  if (page === 'analyze') {
+    // 不做任何事，保留原本分析功能
+    return;
+  } else if (page === 'history') {
     showHistoryPage();
-  } else if (page !== 'analyze') {
+  } else {
+    // 其他未開發頁面
     const aiResult = document.getElementById('ai-result');
-    if (aiResult && !aiResult.textContent.includes('⭐')) {
+    if (aiResult) {
       aiResult.textContent = '🚧 此功能正在開發中，敬請期待！';
     }
     document.getElementById('loading').style.display = 'none';
