@@ -844,11 +844,6 @@ button:disabled {
       <span class="material-symbols-outlined">insights</span>
       <span class="text-sm">進步趨勢</span>
     </div>
-    <div onclick="switchToPage('drills')"
-      class="nav-item flex items-center gap-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer hover:translate-x-1 duration-300">
-      <span class="material-symbols-outlined">fitness_center</span>
-      <span class="text-sm">訓練計畫</span>
-    </div>
     <div onclick="switchToPage('history')"
       class="nav-item flex items-center gap-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer hover:translate-x-1 duration-300">
       <span class="material-symbols-outlined">inventory_2</span>
@@ -2013,7 +2008,7 @@ ${summarize(cleanData.back, '背面')}
 // ===== 頁面切換 =====
 function switchToPage(page) {
   document.querySelectorAll('.nav-item').forEach((item, i) => {
-    const pageOrder = ['analyze', 'compare', 'trends', 'drills', 'history'];
+    const pageOrder = ['analyze', 'compare', 'trends', 'history'];
     if (pageOrder[i] === page) {
       item.classList.add('bg-[#c3f400]/10', 'border-r-4', 'border-[#c3f400]', 'text-[#c3f400]', 'font-bold');
       item.classList.remove('text-on-surface-variant');
