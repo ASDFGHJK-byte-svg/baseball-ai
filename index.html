@@ -829,7 +829,7 @@ button:disabled {
 
   <!-- 導覽選單 -->
   <nav class="flex flex-col gap-1 flex-1">
-   <div onclick="switchToPage('analyze')"
+   <div onclick="location.href='/app'"
       class="nav-item active flex items-center gap-3 p-3 bg-[#c3f400]/10 border-r-4 border-[#c3f400] text-[#c3f400] font-bold cursor-pointer hover:translate-x-1 transition-transform duration-300">
       <span class="material-symbols-outlined">analytics</span>
       <span class="text-sm">投球分析</span>
@@ -843,6 +843,11 @@ button:disabled {
       class="nav-item flex items-center gap-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer hover:translate-x-1 duration-300">
       <span class="material-symbols-outlined">insights</span>
       <span class="text-sm">進步趨勢</span>
+    </div>
+    <div onclick="switchToPage('drills')"
+      class="nav-item flex items-center gap-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer hover:translate-x-1 duration-300">
+      <span class="material-symbols-outlined">fitness_center</span>
+      <span class="text-sm">訓練計畫</span>
     </div>
     <div onclick="switchToPage('history')"
       class="nav-item flex items-center gap-3 p-3 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer hover:translate-x-1 duration-300">
@@ -2008,7 +2013,7 @@ ${summarize(cleanData.back, '背面')}
 // ===== 頁面切換 =====
 function switchToPage(page) {
   document.querySelectorAll('.nav-item').forEach((item, i) => {
-    const pageOrder = ['analyze', 'compare', 'trends', 'history'];
+    const pageOrder = ['analyze', 'compare', 'trends', 'drills', 'history'];
     if (pageOrder[i] === page) {
       item.classList.add('bg-[#c3f400]/10', 'border-r-4', 'border-[#c3f400]', 'text-[#c3f400]', 'font-bold');
       item.classList.remove('text-on-surface-variant');
@@ -2019,7 +2024,6 @@ function switchToPage(page) {
   });
 
   if (page === 'analyze') {
-    location.href = '/app';
     return;
   } else if (page === 'compare') {
     showComparePage();
@@ -2114,6 +2118,9 @@ async function showHistoryPage() {
   document.getElementById('ai-result').innerHTML = html;
   window.historySessions = sessions;
 }
+
+// 切換選取狀態
+let selectedSessions = [];
 
 function toggleSessionSelect(id, index) {
   const checkbox = document.getElementById(`check-${id}`);
