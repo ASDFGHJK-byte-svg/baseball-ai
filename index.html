@@ -2115,9 +2115,6 @@ async function showHistoryPage() {
   window.historySessions = sessions;
 }
 
-// 切換選取狀態
-let selectedSessions = [];
-
 function toggleSessionSelect(id, index) {
   const checkbox = document.getElementById(`check-${id}`);
   const card = document.getElementById(`session-${id}`);
