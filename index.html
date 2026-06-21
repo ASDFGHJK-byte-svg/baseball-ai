@@ -1356,14 +1356,14 @@ async function loadUsageCount() {
   if (!currentUser) return;
 
   const today = new Date().toISOString().split('T')[0];
-  const { data } = await supabaseClient
+    const { data, error } = await supabaseClient
     .from('usage')
     .select('count')
     .eq('user_id', currentUser.id)
     .eq('date', today)
-    .single();
+      .maybeSingle();
 
-  const count = data ? data.count : 0;
+    const count = (data && !error) ? data.count : 0;
   const remaining = 10 - count;
   document.getElementById('usage-count').textContent = `今日剩餘：${remaining} 次`;
 }
@@ -1375,14 +1375,14 @@ async function checkAndUpdateUsage() {
   }
 
   const today = new Date().toISOString().split('T')[0];
-  const { data } = await supabaseClient
+  const { data, error } = await supabaseClient
     .from('usage')
     .select('count')
     .eq('user_id', currentUser.id)
     .eq('date', today)
-    .single();
+    .maybeSingle();
 
-  const count = data ? data.count : 0;
+  const count = (data && !error) ? data.count : 0;
 
   if (count >= 10) {
     alert('今日分析次數已達上限（10次），明天再來！');
@@ -2112,115 +2112,6 @@ async function showHistoryPage() {
 
   document.getElementById('ai-result').innerHTML = html;
   window.historySessions = sessions;
-}
-
-// 切換選取狀態
-let selectedSessions = [];
-
-function toggleSessionSelect(id, index) {
-  const checkbox = document.getElementById(`check-${id}`);
-  const card = document.getElementById(`session-${id}`);
-
-  if (checkbox.checked) {
-    checkbox.checked = false;
-    card.style.borderColor = '#444933';
-    selectedSessions = selectedSessions.filter(s => s !== id);
-  } else {
-    if (selectedSessions.length >= 2) {
-      alert('最多只能選擇兩筆紀錄！');
-      return;
-    }
-    checkbox.checked = true;
-    card.style.borderColor = '#c3f400';
-    selectedSessions.push(id);
-  }
-}
-
-// 對比兩筆紀錄
-async function compareSelected() {
-  if (selectedSessions.length !== 2) {
-    alert('請選擇兩筆紀錄進行對比！');
-    return;
-  }
-
-  const session1 = window.historySessions.find(s => s.id === selectedSessions[0]);
-  const session2 = window.historySessions.find(s => s.id === selectedSessions[1]);
-
-  document.getElementById('loading').style.display = 'block';
-  document.getElementById('ai-result').innerHTML = '';
-
-  const scoreDiff = session2.score - session1.score;
-
-  const prompt = `你是一位專業棒球投球姿勢分析教練，請用繁體中文、口語化方式回答。
-
-以下是同一位投手兩次投球分析的數據對比：
-
-【第一次】${new Date(session1.created_at).toLocaleDateString('zh-TW')}
-評分：${session1.score} 分
-等級：${session1.level} ／ 風格：${session1.style} ／ 手別：${session1.throws === 'R' ? '右投' : '左投'}
-
-【第二次】${new Date(session2.created_at).toLocaleDateString('zh-TW')}
-評分：${session2.score} 分
-等級：${session2.level} ／ 風格：${session2.style} ／ 手別：${session2.throws === 'R' ? '右投' : '左投'}
-
-評分變化：${scoreDiff > 0 ? '+' : ''}${scoreDiff} 分
-
-請分析：
-1. 📈 進步幅度評估
-2. ✅ 有明顯改善的地方
-3. ⚠️ 還需要繼續努力的地方
-4. 💪 接下來的訓練建議`;
-
-  try {
-    const response = await fetch('/api/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt })
-    });
-
-    const data = await response.json();
-    if (data.error) {
-      document.getElementById('ai-result').textContent = '❌ 分析失敗：' + data.error.message;
-      return;
-    }
-
-    const result = data.choices[0].message.content;
-
-    document.getElementById('ai-result').innerHTML = `
-      <div style="display:flex; gap:12px; margin-bottom:16px; align-items:center;">
-        <div style="flex:1; background:rgba(45,55,72,0.5); border:1px solid #444933; border-radius:8px; padding:12px; text-align:center;">
-          <div style="font-size:11px; color:#a08060; margin-bottom:4px;">第一次</div>
-          <div style="font-size:11px; color:#a08060;">${new Date(session1.created_at).toLocaleDateString('zh-TW')}</div>
-          <div style="font-size:28px; font-weight:bold; color:#c3f400; margin-top:4px;">${session1.score}</div>
-          <div style="font-size:10px; color:#a08060;">分</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:24px;">${scoreDiff >= 0 ? '📈' : '📉'}</div>
-          <div style="font-size:14px; font-weight:bold; color:${scoreDiff >= 0 ? '#c3f400' : '#ff4444'};">
-            ${scoreDiff > 0 ? '+' : ''}${scoreDiff}
-          </div>
-        </div>
-        <div style="flex:1; background:rgba(45,55,72,0.5); border:1px solid #c3f400; border-radius:8px; padding:12px; text-align:center;">
-          <div style="font-size:11px; color:#a08060; margin-bottom:4px;">第二次</div>
-          <div style="font-size:11px; color:#a08060;">${new Date(session2.created_at).toLocaleDateString('zh-TW')}</div>
-          <div style="font-size:28px; font-weight:bold; color:#c3f400; margin-top:4px;">${session2.score}</div>
-          <div style="font-size:10px; color:#a08060;">分</div>
-        </div>
-      </div>
-      <div style="font-size:14px; line-height:1.9; color:#d4c4a8; white-space:pre-wrap;">${result}</div>
-      <button onclick="showHistoryPage()"
-        style="margin-top:12px; width:100%; padding:10px; background:#2a1f14; color:#a08060;
-        border:1px solid #444933; border-radius:8px; cursor:pointer; font-size:13px;">
-        ← 返回歷史紀錄
-      </button>
-    `;
-
-  } catch (err) {
-    document.getElementById('ai-result').textContent = '分析失敗：' + err.message;
-  }
-
-  document.getElementById('loading').style.display = 'none';
-  selectedSessions = [];
 }
 
 // ===== 比較分析 =====
