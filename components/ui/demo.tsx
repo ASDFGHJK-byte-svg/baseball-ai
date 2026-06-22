@@ -1,36 +1,15 @@
-import { Button } from "@/components/ui/neon-button"
+"use client";
 
+import LoadingScreen from "@/components/ui/8bit-loading-screen";
 
-const Default = () => {
-    return (
-        <>
-            <div className="flex flex-col gap-3">
-                <Button>Button</Button>
-                <WithNoNeon />
-                <Solid />
-            </div>
-        </>
-    )
+export default function Default() {
+  return (
+    <div className="flex w-full min-h-screen items-center justify-center bg-background p-8 retro">
+      <LoadingScreen
+        className="min-w-[300px] md:min-w-[400px]"
+        autoProgress
+        autoProgressDuration={8000}
+      />
+    </div>
+  );
 }
-
-const WithNoNeon = () => {
-    return (
-        <>
-            <div className="flex flex-col gap-2">
-                <Button neon={false}>normal button</Button>
-            </div>
-        </>
-    )
-}
-
-const Solid = () => {
-    return (
-        <>
-            <div className="flex flex-col gap-2">
-                <Button variant={"solid"}>solid</Button>
-            </div>
-        </>
-    )
-}
-
-export { Default, WithNoNeon, Solid }
