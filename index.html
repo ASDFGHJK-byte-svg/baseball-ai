@@ -125,8 +125,13 @@ async function compareSelected() {
     return;
   }
 
-  const session1 = window.historySessions.find(s => s.id === selectedSessions[0]);
-  const session2 = window.historySessions.find(s => s.id === selectedSessions[1]);
+  const session1 = window.historySessions.find(s => s.id == selectedSessions[0]);
+  const session2 = window.historySessions.find(s => s.id == selectedSessions[1]);
+
+  if (!session1 || !session2) {
+    alert('找不到選擇的紀錄，請重新選擇。');
+    return;
+  }
 
   document.getElementById('loading').style.display = 'block';
   document.getElementById('ai-result').innerHTML = '';
@@ -2187,10 +2192,15 @@ async function runCompare() {
   if (!id1 || !id2) { alert('請選擇兩筆紀錄！'); return; }
   if (id1 === id2) { alert('請選擇不同的兩筆紀錄！'); return; }
 
-  const session1 = window.compareSessions.find(s => s.id === id1);
-  const session2 = window.compareSessions.find(s => s.id === id2);
-  const scoreDiff = session2.score - session1.score;
+const session1 = window.compareSessions.find(s => s.id == id1);
+    const session2 = window.compareSessions.find(s => s.id == id2);
 
+    if (!session1 || !session2) {
+      document.getElementById('compare-result').textContent = '❌ 找不到選擇的紀錄，請重新載入頁面後再試。';
+      return;
+    }
+
+    const scoreDiff = session2.score - session1.score;
   document.getElementById('compare-result').innerHTML = '⏳ AI 分析中...';
 
   const prompt = `你是一位專業棒球投球姿勢分析教練，請用繁體中文、口語化方式回答。
