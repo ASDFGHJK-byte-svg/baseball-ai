@@ -214,6 +214,7 @@ async function compareSelected() {
 }
   // 儲存分析紀錄到 Supabase
 async function saveSession(data, scoreResult, aiResult) {
+  if (!currentUser) return;
   try {
     await supabaseClient
       .from('sessions')
@@ -230,7 +231,7 @@ async function saveSession(data, scoreResult, aiResult) {
       });
     console.log('分析結果已儲存！');
   } catch (err) {
-    console.error('儲存失敗：', err);
+    console.warn('儲存分析結果失敗（可能是 Supabase 連線問題）:', err.message);
   }
 }
 
@@ -238,19 +239,24 @@ async function saveSession(data, scoreResult, aiResult) {
 async function loadHistory() {
   if (!currentUser) return [];
 
-  const { data, error } = await supabaseClient
-    .from('sessions')
-    .select('*')
-    .eq('user_id', currentUser.id)
-    .order('created_at', { ascending: false })
-    .limit(10);
+  try {
+    const { data, error } = await supabaseClient
+      .from('sessions')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
 
-  if (error) {
-    console.error('讀取失敗：', error);
+    if (error) {
+      console.warn('無法讀取歷史紀錄:', error.message);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.warn('讀取歷史紀錄異常:', err.message);
     return [];
   }
-
-  return data;
 }
   let sidebarOpen = true;
 
@@ -421,6 +427,8 @@ button:disabled {
   <!-- Google AdSense -->
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4488024427128040"
      crossorigin="anonymous"></script>
+  <!-- Baseball AI Database & Scoring Functions -->
+  <script src="database.js"></script>
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1361,16 +1369,27 @@ async function loadUsageCount() {
   if (!currentUser) return;
 
   const today = new Date().toISOString().split('T')[0];
+  try {
     const { data, error } = await supabaseClient
-    .from('usage')
-    .select('count')
-    .eq('user_id', currentUser.id)
-    .eq('date', today)
+      .from('usage')
+      .select('count')
+      .eq('user_id', currentUser.id)
+      .eq('date', today)
       .maybeSingle();
 
+    if (error) {
+      console.warn('無法載入使用次數，默認允許分析:', error.message);
+      document.getElementById('usage-count').textContent = `今日剩餘：未知`;
+      return;
+    }
+
     const count = (data && !error) ? data.count : 0;
-  const remaining = 10 - count;
-  document.getElementById('usage-count').textContent = `今日剩餘：${remaining} 次`;
+    const remaining = 10 - count;
+    document.getElementById('usage-count').textContent = `今日剩餘：${remaining} 次`;
+  } catch (err) {
+    console.warn('讀取使用次數異常:', err.message);
+    document.getElementById('usage-count').textContent = `今日剩餘：未知`;
+  }
 }
 
 async function checkAndUpdateUsage() {
@@ -1380,35 +1399,49 @@ async function checkAndUpdateUsage() {
   }
 
   const today = new Date().toISOString().split('T')[0];
-  const { data, error } = await supabaseClient
-    .from('usage')
-    .select('count')
-    .eq('user_id', currentUser.id)
-    .eq('date', today)
-    .maybeSingle();
-
-  const count = (data && !error) ? data.count : 0;
-
-  if (count >= 10) {
-    alert('今日分析次數已達上限（10次），明天再來！');
-    return false;
-  }
-
-  // 更新次數
-  if (data) {
-    await supabaseClient
+  try {
+    const { data, error } = await supabaseClient
       .from('usage')
-      .update({ count: count + 1 })
+      .select('count')
       .eq('user_id', currentUser.id)
-      .eq('date', today);
-  } else {
-    await supabaseClient
-      .from('usage')
-      .insert({ user_id: currentUser.id, date: today, count: 1 });
-  }
+      .eq('date', today)
+      .maybeSingle();
 
-  loadUsageCount();
-  return true;
+    if (error) {
+      console.warn('無法檢查使用次數，默認允許:', error.message);
+      return true;
+    }
+
+    const count = (data && !error) ? data.count : 0;
+
+    if (count >= 10) {
+      alert('今日分析次數已達上限（10次），明天再來！');
+      return false;
+    }
+
+    // 更新次數
+    try {
+      if (data) {
+        await supabaseClient
+          .from('usage')
+          .update({ count: count + 1 })
+          .eq('user_id', currentUser.id)
+          .eq('date', today);
+      } else {
+        await supabaseClient
+          .from('usage')
+          .insert({ user_id: currentUser.id, date: today, count: 1 });
+      }
+    } catch (updateErr) {
+      console.warn('無法更新使用次數:', updateErr.message);
+    }
+
+    loadUsageCount();
+    return true;
+  } catch (err) {
+    console.warn('使用次數檢查異常，默認允許:', err.message);
+    return true;
+  }
 }
     // ===== 共用函式 =====
     const ANGLES = [
