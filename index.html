@@ -1,12 +1,35 @@
 <!DOCTYPE html>
 <html lang="zh-TW" class="dark">
 <head>
-  <meta charset="UTF-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VeloMetric AI - 棒球投球姿勢分析</title>
 
-<!-- Tailwind CSS -->
-<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+  (() => {
+    const noisyConsolePatterns = [
+      'Live reload enabled',
+      'pose_solution_simd_wasm_bin.js',
+      'gl_context_webgl.cc',
+      'gl_context.cc',
+      'Successfully created a WebGL context',
+      'GL version:',
+      'OpenGL error checking is disabled'
+    ];
+
+    ['debug', 'log', 'info', 'warn', 'error'].forEach((level) => {
+      const original = console[level].bind(console);
+      console[level] = (...args) => {
+        const message = args.map(String).join(' ');
+        if (noisyConsolePatterns.some((pattern) => message.includes(pattern))) return;
+        original(...args);
+      };
+    });
+  })();
+</script>
+
+<!-- Tailwind CSS browser runtime -->
+<script src="https://cdn.tailwindcss.com"></script>
 
 <!-- 字體 -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Geist:wght@500;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
@@ -214,6 +237,7 @@ async function compareSelected() {
 }
   // 儲存分析紀錄到 Supabase
 async function saveSession(data, scoreResult, aiResult) {
+  if (!currentUser) return;
   try {
     await supabaseClient
       .from('sessions')
@@ -230,7 +254,7 @@ async function saveSession(data, scoreResult, aiResult) {
       });
     console.log('分析結果已儲存！');
   } catch (err) {
-    console.error('儲存失敗：', err);
+    console.warn('儲存分析結果失敗（可能是 Supabase 連線問題）:', err.message);
   }
 }
 
@@ -238,19 +262,24 @@ async function saveSession(data, scoreResult, aiResult) {
 async function loadHistory() {
   if (!currentUser) return [];
 
-  const { data, error } = await supabaseClient
-    .from('sessions')
-    .select('*')
-    .eq('user_id', currentUser.id)
-    .order('created_at', { ascending: false })
-    .limit(10);
+  try {
+    const { data, error } = await supabaseClient
+      .from('sessions')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
 
-  if (error) {
-    console.error('讀取失敗：', error);
+    if (error) {
+      console.warn('無法讀取歷史紀錄:', error.message);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.warn('讀取歷史紀錄異常:', err.message);
     return [];
   }
-
-  return data;
 }
   let sidebarOpen = true;
 
@@ -421,6 +450,8 @@ button:disabled {
   <!-- Google AdSense -->
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4488024427128040"
      crossorigin="anonymous"></script>
+  <!-- Baseball AI Database & Scoring Functions -->
+  <script src="database.js"></script>
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1361,16 +1392,27 @@ async function loadUsageCount() {
   if (!currentUser) return;
 
   const today = new Date().toISOString().split('T')[0];
+  try {
     const { data, error } = await supabaseClient
-    .from('usage')
-    .select('count')
-    .eq('user_id', currentUser.id)
-    .eq('date', today)
+      .from('usage')
+      .select('count')
+      .eq('user_id', currentUser.id)
+      .eq('date', today)
       .maybeSingle();
 
+    if (error) {
+      console.warn('無法載入使用次數，默認允許分析:', error.message);
+      document.getElementById('usage-count').textContent = `今日剩餘：未知`;
+      return;
+    }
+
     const count = (data && !error) ? data.count : 0;
-  const remaining = 10 - count;
-  document.getElementById('usage-count').textContent = `今日剩餘：${remaining} 次`;
+    const remaining = 10 - count;
+    document.getElementById('usage-count').textContent = `今日剩餘：${remaining} 次`;
+  } catch (err) {
+    console.warn('讀取使用次數異常:', err.message);
+    document.getElementById('usage-count').textContent = `今日剩餘：未知`;
+  }
 }
 
 async function checkAndUpdateUsage() {
@@ -1380,35 +1422,49 @@ async function checkAndUpdateUsage() {
   }
 
   const today = new Date().toISOString().split('T')[0];
-  const { data, error } = await supabaseClient
-    .from('usage')
-    .select('count')
-    .eq('user_id', currentUser.id)
-    .eq('date', today)
-    .maybeSingle();
-
-  const count = (data && !error) ? data.count : 0;
-
-  if (count >= 10) {
-    alert('今日分析次數已達上限（10次），明天再來！');
-    return false;
-  }
-
-  // 更新次數
-  if (data) {
-    await supabaseClient
+  try {
+    const { data, error } = await supabaseClient
       .from('usage')
-      .update({ count: count + 1 })
+      .select('count')
       .eq('user_id', currentUser.id)
-      .eq('date', today);
-  } else {
-    await supabaseClient
-      .from('usage')
-      .insert({ user_id: currentUser.id, date: today, count: 1 });
-  }
+      .eq('date', today)
+      .maybeSingle();
 
-  loadUsageCount();
-  return true;
+    if (error) {
+      console.warn('無法檢查使用次數，默認允許:', error.message);
+      return true;
+    }
+
+    const count = (data && !error) ? data.count : 0;
+
+    if (count >= 10) {
+      alert('今日分析次數已達上限（10次），明天再來！');
+      return false;
+    }
+
+    // 更新次數
+    try {
+      if (data) {
+        await supabaseClient
+          .from('usage')
+          .update({ count: count + 1 })
+          .eq('user_id', currentUser.id)
+          .eq('date', today);
+      } else {
+        await supabaseClient
+          .from('usage')
+          .insert({ user_id: currentUser.id, date: today, count: 1 });
+      }
+    } catch (updateErr) {
+      console.warn('無法更新使用次數:', updateErr.message);
+    }
+
+    loadUsageCount();
+    return true;
+  } catch (err) {
+    console.warn('使用次數檢查異常，默認允許:', err.message);
+    return true;
+  }
 }
     // ===== 共用函式 =====
     const ANGLES = [
@@ -1509,15 +1565,31 @@ async function checkAndUpdateUsage() {
     async function runAnalysis(data, resultId = 'ai-result', loadingId = 'loading') {
   // 檢查登入和使用次數
   const canUse = await checkAndUpdateUsage();
-  if (!canUse) return;
+  if (!canUse) {
+    document.getElementById(loadingId).style.display = 'none';
+    document.getElementById(resultId).textContent = '請先登入並確認還有可用分析次數。';
+    return;
+  }
   document.getElementById(loadingId).style.display = 'block';
   document.getElementById(resultId).textContent = '';
 
+  const labels = { front: '正面', side: '側面', back: '背面' };
+  const emptyAngles = Object.entries(data)
+    .filter(([_, frames]) => !Array.isArray(frames) || frames.length === 0)
+    .map(([key]) => labels[key] || key);
+  if (emptyAngles.length) {
+    document.getElementById(resultId).textContent =
+      `無法分析：${emptyAngles.join('、')}影片未產生姿勢數據。請重新上傳並確認影片能清楚看到投球動作。`;
+    document.getElementById(loadingId).style.display = 'none';
+    return;
+  }
+
   const avg = (arr, key) =>
-    Math.round(arr.reduce((s, f) => s + f[key], 0) / arr.length);
+    arr.length === 0 ? 0 : Math.round(arr.reduce((s, f) => s + f[key], 0) / arr.length);
 
   // 過濾異常值（去除偏差超過2個標準差的幀）
   function filterOutliers(arr, key) {
+    if (arr.length === 0) return [];
     const values = arr.map(f => f[key]);
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
     const std = Math.sqrt(values.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / values.length);
@@ -1687,22 +1759,41 @@ ${summarize(cleanData.back, '背面')}
 （2個具體的練習動作）`;
 
   try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 45000);
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ prompt }),
+        signal: controller.signal
       });
-    const d = await response.json();
-    if (d.error) {
-      document.getElementById(resultId).textContent = '❌ API 錯誤：' + d.error.message;
-      return;
-    }
-    document.getElementById(resultId).textContent = d.choices[0].message.content;
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        document.getElementById(resultId).textContent =
+          `❌ AI 請求失敗：${response.status} ${response.statusText} ${errorText}`;
+        return;
+      }
+
+      const d = await response.json();
+      if (d.error) {
+        document.getElementById(resultId).textContent = '❌ API 錯誤：' + (d.error.message || JSON.stringify(d.error));
+        return;
+      }
+      if (!d.choices || !d.choices[0] || !d.choices[0].message) {
+        document.getElementById(resultId).textContent = '❌ AI 回傳格式異常，請稍後重試。';
+        return;
+      }
+      document.getElementById(resultId).textContent = d.choices[0].message.content;
 
   } catch (err) {
-    document.getElementById(resultId).textContent = '分析失敗：' + err.message;
+    const message = err.name === 'AbortError'
+      ? 'AI 請求超時，請稍後再試。'
+      : err.message;
+    document.getElementById(resultId).textContent = '分析失敗：' + message;
   }
 
   // 儲存分析結果到 Supabase
@@ -1929,49 +2020,61 @@ ${summarize(cleanData.back, '背面')}
 
     // 用 MediaPipe 逐幀分析影片
     async function analyzeVideoFile(file, label, progressCallback) {
-      return new Promise(async (resolve) => {
-        const pose = new Pose({
-          locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`
-        });
-        pose.setOptions({
-          modelComplexity: 1, smoothLandmarks: true,
-          minDetectionConfidence: 0.5, minTrackingConfidence: 0.5
-        });
-
-        const frames = [];
-        pose.onResults(results => {
-          if (results.poseLandmarks) {
-            frames.push({ frame: frames.length, ...extractAngles(results.poseLandmarks) });
-          }
-        });
-
-        const videoEl = document.createElement('video');
-        videoEl.src = URL.createObjectURL(file);
-        videoEl.muted = true;
-        await new Promise(r => { videoEl.onloadedmetadata = r; });
-
-        const offCanvas = document.createElement('canvas');
-        const offCtx = offCanvas.getContext('2d');
-        const duration = videoEl.duration;
-        const interval = 0.1; // 每 0.1 秒擷取一幀
-
-        videoEl.currentTime = 0;
-        await new Promise(r => { videoEl.onseeked = r; });
-
-        let t = 0;
-        while (t < duration) {
-          videoEl.currentTime = t;
-          await new Promise(r => { videoEl.onseeked = r; });
-          offCanvas.width  = videoEl.videoWidth;
-          offCanvas.height = videoEl.videoHeight;
-          offCtx.drawImage(videoEl, 0, 0);
-          await pose.send({ image: offCanvas });
-          t += interval;
-          if (progressCallback) progressCallback(t / duration);
-        }
-
-        resolve(frames);
+      const pose = new Pose({
+        locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`
       });
+      pose.setOptions({
+        modelComplexity: 1, smoothLandmarks: true,
+        minDetectionConfidence: 0.5, minTrackingConfidence: 0.5
+      });
+
+      const frames = [];
+      pose.onResults(results => {
+        if (results.poseLandmarks) {
+          frames.push({ frame: frames.length, ...extractAngles(results.poseLandmarks) });
+        }
+      });
+
+      const videoEl = document.createElement('video');
+      videoEl.src = URL.createObjectURL(file);
+      videoEl.muted = true;
+      await new Promise((resolve, reject) => {
+        videoEl.onloadedmetadata = resolve;
+        videoEl.onerror = () => reject(new Error(`${label}影片載入失敗，請確認影片格式是否正確。`));
+      });
+
+      const offCanvas = document.createElement('canvas');
+      const offCtx = offCanvas.getContext('2d');
+      const duration = videoEl.duration;
+      if (!duration || isNaN(duration)) {
+        throw new Error(`${label}影片無法讀取長度，請確認影片格式是否正確。`);
+      }
+
+      const maxSamples = 40;
+      const interval = Math.max(0.2, duration / maxSamples);
+      let t = 0;
+      let sampleCount = 0;
+
+      while (t < duration && sampleCount < maxSamples) {
+        videoEl.currentTime = Math.min(t, duration - 0.001);
+        await new Promise(r => { videoEl.onseeked = r; });
+        offCanvas.width  = videoEl.videoWidth;
+        offCanvas.height = videoEl.videoHeight;
+        offCtx.drawImage(videoEl, 0, 0);
+        await Promise.race([
+          pose.send({ image: offCanvas }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error(`${label}影片分析超時，請使用較短影片或降低解析度。`)), 15000))
+        ]);
+        t += interval;
+        sampleCount += 1;
+        if (progressCallback) progressCallback(Math.min(sampleCount / maxSamples, 1));
+      }
+
+      if (frames.length === 0) {
+        throw new Error(`${label}影片無法偵測到任何姿勢，請確認影片能清楚看到投球動作並重試。`);
+      }
+
+      return frames;
     }
 
     async function analyzeUploadedVideos() {
@@ -1984,31 +2087,43 @@ ${summarize(cleanData.back, '背面')}
       const labels = ['正面', '側面', '背面'];
       const keys   = ['front', 'side', 'back'];
 
-      for (let i = 0; i < keys.length; i++) {
-        const key = keys[i];
-        document.getElementById('upload-progress-text').textContent =
-          `分析${labels[i]}影片中... (${i+1}/3)`;
-
-        uploadAngleData[key] = await analyzeVideoFile(
-          uploadedFiles[key],
-          labels[i],
-          (p) => {
-            const overall = ((i + p) / 3) * 100;
-            document.getElementById('progress-bar2').style.width = overall + '%';
-            document.getElementById('upload-progress-text').textContent =
-              `分析${labels[i]}影片中... ${Math.round(p*100)}%`;
-          }
-        );
+      if (!uploadedFiles.front || !uploadedFiles.side || !uploadedFiles.back) {
+        document.getElementById('ai-result2').textContent = '請先上傳三個角度的影片，再點「分析三角度影片」。';
+        document.getElementById('loading2').style.display = 'none';
+        document.getElementById('upload-progress').style.display = 'none';
+        document.getElementById('upload-analyze-btn').disabled = false;
+        return;
       }
 
-      document.getElementById('upload-progress-text').textContent =
-        `三個角度分析完成！傳送給 AI 中...`;
-      document.getElementById('progress-bar2').style.width = '100%';
+      try {
+        for (let i = 0; i < keys.length; i++) {
+          const key = keys[i];
+          document.getElementById('upload-progress-text').textContent =
+            `分析${labels[i]}影片中... (${i+1}/3)`;
 
-      await runAnalysis(uploadAngleData, 'ai-result2', 'loading2');
+          uploadAngleData[key] = await analyzeVideoFile(
+            uploadedFiles[key],
+            labels[i],
+            (p) => {
+              const overall = ((i + p) / 3) * 100;
+              document.getElementById('progress-bar2').style.width = overall + '%';
+              document.getElementById('upload-progress-text').textContent =
+                `分析${labels[i]}影片中... ${Math.round(p*100)}%`;
+            }
+          );
+        }
 
-      document.getElementById('upload-progress').style.display = 'none';
-      document.getElementById('upload-analyze-btn').disabled = false;
+        document.getElementById('upload-progress-text').textContent =
+          `三個角度分析完成！傳送給 AI 中...`;
+        document.getElementById('progress-bar2').style.width = '100%';
+
+        await runAnalysis(uploadAngleData, 'ai-result2', 'loading2');
+      } catch (err) {
+        document.getElementById('ai-result2').textContent = '影片分析失敗：' + err.message;
+      } finally {
+        document.getElementById('upload-progress').style.display = 'none';
+        document.getElementById('upload-analyze-btn').disabled = false;
+      }
     }
 // ===== 頁面切換 =====
 function switchToPage(page) {
