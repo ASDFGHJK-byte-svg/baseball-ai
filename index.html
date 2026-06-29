@@ -1,12 +1,35 @@
 <!DOCTYPE html>
 <html lang="zh-TW" class="dark">
 <head>
-  <meta charset="UTF-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VeloMetric AI - 棒球投球姿勢分析</title>
 
-<!-- Tailwind CSS from jsDelivr (more reliable) -->
-<script src="https://cdn.jsdelivr.net/npm/tailwindcss@3/tailwind.min.js"></script>
+<script>
+  (() => {
+    const noisyConsolePatterns = [
+      'Live reload enabled',
+      'pose_solution_simd_wasm_bin.js',
+      'gl_context_webgl.cc',
+      'gl_context.cc',
+      'Successfully created a WebGL context',
+      'GL version:',
+      'OpenGL error checking is disabled'
+    ];
+
+    ['debug', 'log', 'info', 'warn', 'error'].forEach((level) => {
+      const original = console[level].bind(console);
+      console[level] = (...args) => {
+        const message = args.map(String).join(' ');
+        if (noisyConsolePatterns.some((pattern) => message.includes(pattern))) return;
+        original(...args);
+      };
+    });
+  })();
+</script>
+
+<!-- Tailwind CSS browser runtime -->
+<script src="https://cdn.tailwindcss.com"></script>
 
 <!-- 字體 -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Geist:wght@500;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
