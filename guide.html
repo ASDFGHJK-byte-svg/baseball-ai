@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>使用說明 - VeloMetric AI</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            'surface': '#121414',
+            'surface-container-low': '#1a1c1a',
+            'surface-container-high': '#2a2c2a',
+            'on-surface': '#e2e2e2',
+            'on-surface-variant': '#8a8a8a',
+            'outline-variant': '#3a3c3a',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #121414; color: #e2e2e2; font-family: 'Inter', sans-serif; }
+    .accent { color: #c3f400; }
+    .card {
+      background: rgba(45,55,72,0.3);
+      border: 1px solid rgba(58,60,58,0.5);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .step-number {
+      background: #c3f400;
+      color: #121414;
+      font-weight: 800;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .section-divider {
+      border: none;
+      border-top: 1px solid rgba(195,244,0,0.15);
+      margin: 48px 0;
+    }
+    .tip {
+      background: rgba(195,244,0,0.05);
+      border: 1px solid rgba(195,244,0,0.2);
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- 頂部導覽 -->
+  <header class="fixed top-0 left-0 right-0 h-16 px-6 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/30 flex justify-between items-center z-50">
+    <a href="/" class="text-xl font-bold accent tracking-tighter">⚾ VeloMetric</a>
+    <nav class="flex gap-6 text-sm text-on-surface-variant">
+      <a href="/" class="hover:text-[#c3f400] transition-colors">投球分析</a>
+      <a href="/about.html" class="hover:text-[#c3f400] transition-colors">關於我們</a>
+      <a href="/guide.html" class="text-[#c3f400]">使用說明</a>
+      <a href="/privacy.html" class="hover:text-[#c3f400] transition-colors">隱私權政策</a>
+    </nav>
+  </header>
+
+  <!-- 主要內容 -->
+  <main class="max-w-3xl mx-auto px-6 pt-28 pb-20">
+
+    <!-- 標題 -->
+    <div class="mb-12">
+      <p class="text-sm accent font-medium mb-2 tracking-widest uppercase">User Guide</p>
+      <h1 class="text-4xl font-extrabold text-on-surface mb-4">使用說明</h1>
+      <p class="text-on-surface-variant text-lg leading-relaxed">
+        只需要幾個簡單步驟，就能讓 AI 幫你分析投球姿勢、找出問題、提供改善建議。
+      </p>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- 開始前的準備 -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-on-surface mb-6">開始前的準備</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="card">
+          <div class="text-2xl mb-3">📱</div>
+          <h3 class="font-bold text-on-surface mb-2">拍攝設備</h3>
+          <p class="text-sm text-on-surface-variant leading-relaxed">手機、平板或相機皆可。建議使用慢動作模式拍攝（60fps 以上），讓 AI 能夠捕捉到更精確的動作細節。</p>
+        </div>
+        <div class="card">
+          <div class="text-2xl mb-3">📐</div>
+          <h3 class="font-bold text-on-surface mb-2">拍攝角度</h3>
+          <p class="text-sm text-on-surface-variant leading-relaxed">建議從三個角度拍攝：正面、側面、背面。每個角度都能讓 AI 分析到不同部位的動作，提供更全面的評估。</p>
+        </div>
+        <div class="card">
+          <div class="text-2xl mb-3">💡</div>
+          <h3 class="font-bold text-on-surface mb-2">光線環境</h3>
+          <p class="text-sm text-on-surface-variant leading-relaxed">確保拍攝環境光線充足，避免逆光或過暗的場所，這樣 AI 才能清楚辨識你的身體關節位置。</p>
+        </div>
+        <div class="card">
+          <div class="text-2xl mb-3">👕</div>
+          <h3 class="font-bold text-on-surface mb-2">穿著建議</h3>
+          <p class="text-sm text-on-surface-variant leading-relaxed">建議穿著合身、顏色鮮明的運動服，避免寬鬆衣物遮蓋關節位置，讓 AI 更精準地追蹤你的身體動作。</p>
+        </div>
+      </div>
+    </section>
+
+    <hr class="section-divider">
+
+    <!-- 即時攝影機分析步驟 -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-on-surface mb-2">方式一：即時攝影機分析</h2>
+      <p class="text-on-surface-variant mb-6">適合想要即時看到骨架追蹤效果、或沒有現成影片的使用者。</p>
+
+      <div class="flex flex-col gap-4">
+        <div class="flex gap-4 items-start">
+          <div class="step-number">1</div>
+          <div>
+            <h3 class="font-bold text-on-surface">登入帳號</h3>
+            <p class="text-sm text-on-surface-variant mt-1 leading-relaxed">點選右上角的「登入」按鈕，使用 Google 帳號一鍵登入，即可使用每日免費的分析次數。</p>
+          </div>
+        </div>
+        <div class="flex gap-4 items-start">
+          <div class="step-number">2</div>
+          <div>
+            <h3 class="font-bold text-on-surface">選擇投手等級</h3>
+            <p class="text-sm text-on-surface-variant mt-1 leading-relaxed">在分析頁面選擇你的投手等級（初學者／青少年／業餘／職業），系統會根據等級調整評分標準與給予適合的建議。</p>
+          </div>
+        </div>
+        <div class="flex gap-4 items-start">
+          <div class="step-number">3</div>
+          <div>
+            <h3 class="font-bold text-on-surface">開啟攝影機</h3>
+            <p class="text-sm text-on-surface-variant mt-1 leading-relaxed">點選「開啟攝影機」，允許網站使用鏡頭權限。你會在畫面上看到即時的骨架追蹤效果。</p>
+          </div>
+        </div>
+        <div class="flex gap-4 items-start">
+          <div class="step-number">4</div>
+          <div>
+            <h3 class="font-bold text-on-surface">開始錄製</h3>
+            <p class="text-sm text-on-surface-variant mt-1 leading-relaxed">站在攝影機前，確認全身都在畫面內，點選「開始錄製」後做出完整的投球動作，再點「停止錄製」。</p>
+          </div>
+        </div>
+        <div class="flex gap-4 items-start">
+          <div class="step-number">5</div>
+          <div>
+            <h3 class="font-bold text-on-surface">取得 AI 分析報告</h3>
+            <p class="text-sm text-on-surface-variant mt-1 leading-relaxed">點選「🤖 AI 分析」按鈕，等待幾秒鐘，系統會自動計算評分並生成個人化的改善建議。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="section-divider">
+
+    <!-- 上傳影片分析步驟 -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-on-surface mb-2">方式二：上傳影片分析</h2>
+      <p class="text-on-surface-variant mb-6">適合已有現成投球影片的使用者，可同時上傳多個角度進行更全面的分析。</p>
+
+      <div class="flex flex-col gap-4">
+        <div class="flex gap-4 items-start">
+          <div class="step-number">1</div>
+          <div>
+            <h3 class="font-bold text-on-surface">準備影片檔案</h3>
+            <p class="text-sm text-on-surface-variant mt-1 leading-relaxed">支援 MP4、MOV、WebM 等常見格式。建議影片長度 3〜15 秒，包含完整的投球動作（從起始動作到跟進完成）。</p>
+          </div>
+        </div>
+        <div class="flex gap-4 items-start">
+          <div class="step-number">2</div>
+          <div>
+            <h3 class="font-bold text-on-surface">上傳影片</h3>
+            <p class="text-sm text-on-surface-variant mt-1 leading-relaxed">在「上傳影片分析」區塊，可分別上傳正面、側面、背面三個角度的影片，也可以只上傳單一角度。</p>
+          </div>
+        </div>
+        <div class="flex gap-4 items-start">
+          <div class="step-number">3</div>
+          <div>
+            <h3 class="font-bold text-on-surface">等待處理</h3>
+            <p class="text-sm text-on-surface-variant mt-1 leading-relaxed">系統會逐幀分析影片中的身體姿勢，過程需要 10〜30 秒，影片越長處理時間越久，請耐心等待。</p>
+          </div>
+        </div>
+        <div class="flex gap-4 items-start">
+          <div class="step-number">4</div>
+          <div>
+            <h3 class="font-bold text-on-surface">閱讀分析報告</h3>
+            <p class="text-sm text-on-surface-variant mt-1 leading-relaxed">報告包含四個評分項目（手肘控制、肩膀平衡、膝蓋彎曲、跟進動作）、綜合總分、傷害風險提示，以及 AI 給出的具體改善建議。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <hr class="section-divider">
+
+    <!-- 評分說明 -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-on-surface mb-6">評分項目說明</h2>
+      <div class="flex flex-col gap-4">
+        <div class="card">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="font-bold text-on-surface">手肘控制</h3>
+            <span class="text-sm accent">佔 30%</span>
+          </div>
+          <p class="text-sm text-on-surface-variant leading-relaxed">評估加速期投球手的手肘彎曲角度。理想範圍為 80〜100°，角度過小可能增加手肘韌帶的壓力。</p>
+        </div>
+        <div class="card">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="font-bold text-on-surface">肩膀平衡</h3>
+            <span class="text-sm accent">佔 20%</span>
+          </div>
+          <p class="text-sm text-on-surface-variant leading-relaxed">評估左右肩膀的高度差異。差異越小代表身體核心控制越穩定，有助於提升投球準度和保護肩關節。</p>
+        </div>
+        <div class="card">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="font-bold text-on-surface">膝蓋彎曲</h3>
+            <span class="text-sm accent">佔 25%</span>
+          </div>
+          <p class="text-sm text-on-surface-variant leading-relaxed">評估起始動作時前導腳的膝蓋彎曲程度。理想範圍為 130〜160°，適度彎曲有助於發力和保持重心穩定。</p>
+        </div>
+        <div class="card">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="font-bold text-on-surface">跟進動作</h3>
+            <span class="text-sm accent">佔 25%</span>
+          </div>
+          <p class="text-sm text-on-surface-variant leading-relaxed">評估投球完成後手臂的延伸程度。充分的跟進動作有助於手臂減速，降低肩膀和手肘的受傷風險。</p>
+        </div>
+      </div>
+    </section>
+
+    <hr class="section-divider">
+
+    <!-- 常見問題 -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-on-surface mb-6">常見問題</h2>
+      <div class="flex flex-col gap-4">
+        <div class="card">
+          <h3 class="font-bold text-on-surface mb-2">為什麼骨架追蹤沒有出現？</h3>
+          <p class="text-sm text-on-surface-variant leading-relaxed">請確認光線是否充足、全身是否都在鏡頭範圍內、以及是否穿著合身衣物。如果仍有問題，嘗試重新整理頁面。</p>
+        </div>
+        <div class="card">
+          <h3 class="font-bold text-on-surface mb-2">每天可以分析幾次？</h3>
+          <p class="text-sm text-on-surface-variant leading-relaxed">登入帳號後每天提供免費分析次數。未登入使用者無法儲存分析結果及查看歷史紀錄。</p>
+        </div>
+        <div class="card">
+          <h3 class="font-bold text-on-surface mb-2">分析結果會保存嗎？</h3>
+          <p class="text-sm text-on-surface-variant leading-relaxed">登入後每次分析結果都會自動儲存，你可以在「歷史紀錄」頁面查看所有過去的分析，並選擇兩筆紀錄進行比較，追蹤自己的進步幅度。</p>
+        </div>
+        <div class="card">
+          <h3 class="font-bold text-on-surface mb-2">AI 分析的準確度如何？</h3>
+          <p class="text-sm text-on-surface-variant leading-relaxed">VeloMetric 使用 Google MediaPipe 進行關節偵測，在光線良好的條件下，角度誤差通常在 ±10° 以內。本工具提供輔助參考，建議配合專業教練指導使用。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 提示 -->
+    <div class="tip mb-12">
+      <p class="text-sm text-on-surface-variant leading-relaxed">
+        <span class="accent font-bold">💡 小提示：</span>建議每週錄製一次投球影片，持續追蹤你的進步。透過「比較分析」功能，你可以清楚看到每個評分項目的改善幅度。
+      </p>
+    </div>
+
+    <!-- 免責聲明 -->
+    <div style="background: rgba(195,244,0,0.05); border: 1px solid rgba(195,244,0,0.2); border-radius: 12px; padding: 20px 24px; margin-bottom: 40px;">
+      <p style="font-size: 14px; color: #a0a0a0; line-height: 1.8; text-align: center;">
+        ⚠️ 此網站由 AI 進行檢測，僅供娛樂或休閒玩家使用。AI 所提供的分析結果不一定完全正確，如有詳細問題建議尋求專業教練協助解決。祝使用愉快！
+      </p>
+    </div>
+
+    <!-- 底部連結 -->
+    <div class="text-center text-sm text-on-surface-variant">
+      <a href="/" class="hover:text-[#c3f400] transition-colors mx-3">投球分析</a>
+      <a href="/about.html" class="hover:text-[#c3f400] transition-colors mx-3">關於我們</a>
+      <a href="/privacy.html" class="hover:text-[#c3f400] transition-colors mx-3">隱私權政策</a>
+    </div>
+
+  </main>
+</body>
+</html>

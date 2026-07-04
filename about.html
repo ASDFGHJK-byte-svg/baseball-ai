@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>關於我們 - VeloMetric AI</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            'surface': '#121414',
+            'surface-container-low': '#1a1c1a',
+            'surface-container-high': '#2a2c2a',
+            'on-surface': '#e2e2e2',
+            'on-surface-variant': '#8a8a8a',
+            'outline-variant': '#3a3c3a',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #121414; color: #e2e2e2; font-family: 'Inter', sans-serif; }
+    .accent { color: #c3f400; }
+    .card {
+      background: rgba(45,55,72,0.3);
+      border: 1px solid rgba(58,60,58,0.5);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .section-divider {
+      border: none;
+      border-top: 1px solid rgba(195,244,0,0.15);
+      margin: 48px 0;
+    }
+  </style>
+</head>
+<body class="min-h-screen">
+
+  <!-- 頂部導覽 -->
+  <header class="fixed top-0 left-0 right-0 h-16 px-6 bg-surface/80 backdrop-blur-xl border-b border-outline-variant/30 flex justify-between items-center z-50">
+    <a href="/" class="text-xl font-bold accent tracking-tighter">⚾ VeloMetric</a>
+    <nav class="flex gap-6 text-sm text-on-surface-variant">
+      <a href="/" class="hover:text-[#c3f400] transition-colors">投球分析</a>
+      <a href="/about.html" class="text-[#c3f400]">關於我們</a>
+      <a href="/guide.html" class="hover:text-[#c3f400] transition-colors">使用說明</a>
+      <a href="/privacy.html" class="hover:text-[#c3f400] transition-colors">隱私權政策</a>
+    </nav>
+  </header>
+
+  <!-- 主要內容 -->
+  <main class="max-w-3xl mx-auto px-6 pt-28 pb-20">
+
+    <!-- 標題區 -->
+    <div class="mb-12">
+      <p class="text-sm accent font-medium mb-2 tracking-widest uppercase">About Us</p>
+      <h1 class="text-4xl font-extrabold text-on-surface mb-4">關於 VeloMetric AI</h1>
+      <p class="text-on-surface-variant text-lg leading-relaxed">
+        我們相信每一位投手，不論是青少年球員還是業餘愛好者，都應該有機會透過科技提升自己的投球表現。
+      </p>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- 我們是誰 -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-on-surface mb-4">我們是誰</h2>
+      <p class="text-on-surface-variant leading-relaxed mb-4">
+        VeloMetric AI 是一個專注於棒球投球姿勢分析的 AI 工具，由一群對棒球和人工智慧充滿熱情的開發者共同打造。我們結合了 Google MediaPipe 的姿態辨識技術與 AI 語言模型，讓任何人都能透過上傳影片或即時攝影機，獲得專業級的投球動作分析報告。
+      </p>
+      <p class="text-on-surface-variant leading-relaxed">
+        我們的目標很簡單：讓投球技術的進步不再只是職業球員的專利，而是每一個熱愛棒球的人都能享受的資源。
+      </p>
+    </section>
+
+    <!-- 我們解決的問題 -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-on-surface mb-6">我們解決的問題</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="card">
+          <div class="text-3xl mb-3">🎯</div>
+          <h3 class="font-bold text-on-surface mb-2">姿勢難以自我評估</h3>
+          <p class="text-sm text-on-surface-variant leading-relaxed">投球動作轉瞬即逝，自己很難發現問題。VeloMetric 讓你從影片中看清每一個關節的動作。</p>
+        </div>
+        <div class="card">
+          <div class="text-3xl mb-3">💰</div>
+          <h3 class="font-bold text-on-surface mb-2">專業教練費用高昂</h3>
+          <p class="text-sm text-on-surface-variant leading-relaxed">專業動作分析需要付出高額費用。我們希望讓 AI 成為每個球員負擔得起的數位教練。</p>
+        </div>
+        <div class="card">
+          <div class="text-3xl mb-3">🏥</div>
+          <h3 class="font-bold text-on-surface mb-2">傷害預防意識不足</h3>
+          <p class="text-sm text-on-surface-variant leading-relaxed">錯誤的投球姿勢是運動傷害的主要原因之一。我們的系統會主動標示潛在的傷害風險動作。</p>
+        </div>
+      </div>
+    </section>
+
+    <hr class="section-divider">
+
+    <!-- 核心技術 -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-on-surface mb-4">核心技術</h2>
+      <div class="card">
+        <ul class="space-y-4">
+          <li class="flex gap-4 items-start">
+            <span class="accent font-bold text-lg mt-0.5">01</span>
+            <div>
+              <h3 class="font-bold text-on-surface">Google MediaPipe 姿態辨識</h3>
+              <p class="text-sm text-on-surface-variant mt-1 leading-relaxed">即時追蹤全身 33 個關節點，精準計算手肘、肩膀、膝蓋等關鍵部位的角度數值。</p>
+            </div>
+          </li>
+          <li class="flex gap-4 items-start">
+            <span class="accent font-bold text-lg mt-0.5">02</span>
+            <div>
+              <h3 class="font-bold text-on-surface">AI 動作評分演算法</h3>
+              <p class="text-sm text-on-surface-variant mt-1 leading-relaxed">根據投球的起始期、加速期、跟進期三個階段，分別計算手肘控制、肩膀平衡、膝蓋彎曲、跟進動作四項評分。</p>
+            </div>
+          </li>
+          <li class="flex gap-4 items-start">
+            <span class="accent font-bold text-lg mt-0.5">03</span>
+            <div>
+              <h3 class="font-bold text-on-surface">Claude AI 個人化建議</h3>
+              <p class="text-sm text-on-surface-variant mt-1 leading-relaxed">結合評分數據，由 AI 生成針對你個人投球等級（初學者／青少年／業餘／職業）量身打造的改善建議。</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <hr class="section-divider">
+
+    <!-- 聯絡 -->
+    <section class="mb-12">
+      <h2 class="text-2xl font-bold text-on-surface mb-4">聯絡我們</h2>
+      <p class="text-on-surface-variant leading-relaxed mb-4">
+        如果你有任何問題、功能建議、或合作邀請，歡迎透過以下方式與我們聯繫：
+      </p>
+      <div class="card flex items-center gap-4">
+        <span class="material-symbols-outlined accent">mail</span>
+        <!-- 請替換成你真實的 email -->
+        <a href="mailto:baseball.ai.test@gmail.com" class="accent hover:underline">baseball.ai.test@gmail.com</a>
+      </div>
+    </section>
+
+    <!-- 免責聲明 -->
+    <div style="background: rgba(195,244,0,0.05); border: 1px solid rgba(195,244,0,0.2); border-radius: 12px; padding: 20px 24px; margin-bottom: 40px;">
+      <p style="font-size: 14px; color: #a0a0a0; line-height: 1.8; text-align: center;">
+        ⚠️ 此網站由 AI 進行檢測，僅供娛樂或休閒玩家使用。AI 所提供的分析結果不一定完全正確，如有詳細問題建議尋求專業教練協助解決。祝使用愉快！
+      </p>
+    </div>
+
+    <!-- 底部連結 -->
+    <div class="text-center text-sm text-on-surface-variant">
+      <a href="/" class="hover:text-[#c3f400] transition-colors mx-3">投球分析</a>
+      <a href="/guide.html" class="hover:text-[#c3f400] transition-colors mx-3">使用說明</a>
+      <a href="/privacy.html" class="hover:text-[#c3f400] transition-colors mx-3">隱私權政策</a>
+    </div>
+
+  </main>
+</body>
+</html>
